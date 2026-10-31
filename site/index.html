@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0e6b66">
+<title>Radar de Preços BBB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f2ec; --surface:#ffffff; --surface-2:#efebe3; --ink:#13201f; --muted:#56635f; --line:#dcd5c9;
+  --agua:#0e6b66; --agua-ink:#ffffff; --agua-soft:#d8ebe8; --cobre:#a8642a; --cobre-soft:#f3e3d3;
+  --neutro:#6f7a77; --alerta:#b3261e; --alerta-soft:#f8dedb; --ok:#2f7d4f;
+  --sombra:0 1px 2px rgba(19,32,31,.06),0 4px 14px rgba(19,32,31,.05);
+  --f-txt:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-tit:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a1514; --surface:#10201e; --surface-2:#152a27; --ink:#e6eeec; --muted:#9db0ac; --line:#24403c;
+    --agua:#43b5aa; --agua-ink:#06201d; --agua-soft:#173a36; --cobre:#de9a5b; --cobre-soft:#3a2716;
+    --neutro:#9aa6a3; --alerta:#ff8a80; --alerta-soft:#3d1a18; --ok:#6fcf97;
+    --sombra:0 1px 2px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a1514; --surface:#10201e; --surface-2:#152a27; --ink:#e6eeec; --muted:#9db0ac; --line:#24403c;
+  --agua:#43b5aa; --agua-ink:#06201d; --agua-soft:#173a36; --cobre:#de9a5b; --cobre-soft:#3a2716;
+  --neutro:#9aa6a3; --alerta:#ff8a80; --alerta-soft:#3d1a18; --ok:#6fcf97;
+  --sombra:0 1px 2px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--f-txt);overflow-x:hidden}
+a{color:var(--agua);text-underline-offset:2px}
+h1,h2,h3{font-family:var(--f-tit);font-weight:600;letter-spacing:.01em;line-height:1.15;margin:0}
+h2{font-size:1.45rem;margin:28px 0 10px}
+h3{font-size:1.15rem;margin:0 0 8px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+
+/* topo */
+header.topo{position:sticky;top:0;z-index:10;background:var(--agua);color:var(--agua-ink);
+  background-image:radial-gradient(circle at 100% 0,rgba(255,255,255,.14) 0 60px,transparent 61px),
+  radial-gradient(circle at 100% 0,transparent 0 96px,rgba(255,255,255,.10) 97px 98px,transparent 99px),
+  radial-gradient(circle at 100% 0,transparent 0 140px,rgba(255,255,255,.07) 141px 142px,transparent 143px)}
+.topo .linha{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:12px}
+.marca{font-family:var(--f-tit);font-weight:700;font-size:1.35rem;letter-spacing:.02em;text-transform:uppercase}
+.marca span{color:var(--cobre-soft)}
+:root[data-theme="dark"] .marca span{color:var(--cobre)}
+.data-topo{font-family:var(--f-num);font-size:.78rem;opacity:.9;white-space:nowrap}
+nav.abas{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-top:8px}
+nav.abas::-webkit-scrollbar{display:none}
+nav.abas a{color:inherit;text-decoration:none;font-family:var(--f-tit);font-weight:600;font-size:1.02rem;letter-spacing:.03em;
+  padding:9px 12px 10px;border-bottom:3px solid transparent;opacity:.82;white-space:nowrap}
+nav.abas a[aria-current="page"]{opacity:1;border-bottom-color:var(--cobre-soft)}
+main{padding:18px 0 48px;min-height:70vh}
+
+/* blocos */
+.cartao{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sombra)}
+.grade{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(min-width:720px){.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.lado{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.frase{font-family:var(--f-tit);font-weight:500;font-size:1.35rem;line-height:1.3;margin:4px 0 16px;max-width:60ch}
+.kpi .rot{font-size:.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.kpi .val{font-family:var(--f-num);font-size:2rem;font-weight:500;line-height:1.1;margin-top:6px}
+.kpi .sub{font-size:.84rem;color:var(--muted);margin-top:4px}
+.kpi.destaque{border-left:5px solid var(--cobre)}
+.kpi.destaque .val{font-size:2.6rem;color:var(--cobre)}
+.c-cara{color:var(--cobre)} .c-media{color:var(--neutro)} .c-barata{color:var(--agua)}
+.pill{display:inline-block;font-family:var(--f-num);font-size:.82rem;padding:1px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.cara{color:var(--cobre);background:var(--cobre-soft);border-color:transparent}
+.pill.media{color:var(--neutro);background:var(--surface-2);border-color:transparent}
+.pill.barata{color:var(--agua);background:var(--agua-soft);border-color:transparent}
+.pill.sem{color:var(--muted);background:var(--surface-2);border-color:transparent}
+.tag{display:inline-block;font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:1px 7px;border-radius:5px;background:var(--surface-2);color:var(--muted)}
+.tag.exato{background:var(--agua-soft);color:var(--agua)}
+.tag.alta{background:var(--alerta-soft);color:var(--alerta)}
+.tag.media{background:var(--cobre-soft);color:var(--cobre)}
+
+/* barras de índice */
+.barras{display:grid;gap:10px}
+.barra{display:grid;grid-template-columns:7.2rem minmax(0,1fr) 3.6rem;align-items:center;gap:10px}
+.barra .nome{font-weight:500;font-size:.95rem}
+.barra .trilho{position:relative;height:16px;background:var(--surface-2);border-radius:4px}
+.barra .enche{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--agua)}
+.barra .enche.acima{background:var(--cobre)}
+.barra .ref{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.55}
+.barra .v{font-family:var(--f-num);text-align:right;font-size:.95rem}
+.legenda-ref{font-size:.8rem;color:var(--muted);margin-top:8px}
+
+/* listas clicáveis */
+.lista{list-style:none;margin:0;padding:0}
+.lista li+li{border-top:1px solid var(--line)}
+.lista a.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 2px;text-decoration:none;color:inherit}
+.lista a.item:hover,.lista a.item:focus-visible{background:var(--surface-2)}
+.item .t{font-weight:500;line-height:1.3}
+.item .d{grid-column:1/-1;font-size:.84rem;color:var(--muted)}
+.item .p{align-self:start}
+.rank{font-family:var(--f-num);color:var(--muted);margin-right:6px;font-size:.85rem}
+
+details{border-top:1px solid var(--line)}
+details:first-of-type{border-top:0}
+summary{cursor:pointer;padding:10px 0;list-style:none;display:flex;gap:10px;align-items:center;justify-content:space-between}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:var(--f-num);color:var(--muted)}
+details[open]>summary::after{content:"−"}
+.alerta-item{padding:8px 0;border-top:1px dashed var(--line);font-size:.92rem}
+.alerta-item:first-child{border-top:0}
+
+/* fontes */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;gap:6px;align-items:baseline;padding:6px 10px;border-radius:8px;background:var(--surface-2);font-size:.9rem}
+.chip b{font-family:var(--f-num);font-weight:500}
+.st-ok{color:var(--ok)} .st-parcial{color:var(--cobre)} .st-bloqueado,.st-erro{color:var(--alerta)}
+
+/* produto */
+.busca{width:100%;font:inherit;font-size:1.05rem;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.busca:focus{outline:3px solid var(--agua-soft);border-color:var(--agua)}
+.resultados{max-height:60vh;overflow:auto;margin-top:8px}
+select{font:inherit;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);max-width:100%}
+.cab-prod{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.cab-prod h1{font-size:1.7rem}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+@media(min-width:720px){.stats{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.stat{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.stat .rot{font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.stat .val{font-family:var(--f-num);font-size:1.15rem;margin-top:2px}
+.specs{font-size:.88rem;color:var(--muted);margin-top:10px}
+
+table.pares{width:100%;border-collapse:collapse;font-size:.92rem}
+table.pares th{font-family:var(--f-tit);font-weight:600;text-align:left;font-size:.95rem;padding:8px 6px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.pares td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+table.pares td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
+table.pares tr.par{cursor:pointer}
+table.pares tr.par:hover td{background:var(--surface-2)}
+[hidden]{display:none!important}
+table.pares tr.motivos td{background:var(--surface-2);font-size:.85rem;color:var(--muted)}
+table.pares tr.fora td{opacity:.72}
+@media(max-width:719px){
+  table.pares thead{display:none}
+  table.pares,table.pares tbody,table.pares tr,table.pares td{display:block;width:100%}
+  table.pares tr.par{border-bottom:1px solid var(--line);padding:8px 0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+  table.pares td{border:0;padding:1px 0}
+  table.pares td.n{text-align:left}
+  table.pares td[data-r]::before{content:attr(data-r) " ";color:var(--muted);font-family:var(--f-txt);font-size:.8rem}
+  table.pares td.c-prod{grid-column:1/-1}
+  table.pares td.c-classe{grid-column:1/-1}
+}
+.negociar{border-left:5px solid var(--agua)}
+.negociar h3{color:var(--agua)}
+.comp{margin:12px 0 16px}
+.comp ul{margin:6px 0 0;padding-left:20px}
+.comp li{margin:3px 0}
+.lado-bbb::marker{color:var(--agua)} .lado-conc::marker{color:var(--cobre)}
+.aviso{background:var(--cobre-soft);color:var(--ink);border-radius:8px;padding:8px 12px;font-size:.9rem;margin:8px 0}
+.vazio{padding:24px;text-align:center;color:var(--muted)}
+
+/* concorrentes */
+.filtros{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.filtros .busca{grid-column:1/-1}
+@media(min-width:720px){.filtros{grid-template-columns:2fr repeat(4,1fr)}.filtros .busca{grid-column:auto}}
+.tab-rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.simples{width:100%;border-collapse:collapse;font-size:.9rem}
+table.simples th{text-align:left;font-family:var(--f-tit);font-weight:600;padding:8px 6px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.simples td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+@media(max-width:719px){
+  table.simples.empilha thead{display:none}
+  table.simples.empilha,table.simples.empilha tbody,table.simples.empilha tr,table.simples.empilha td{display:block;width:100%}
+  table.simples.empilha tr{padding:8px 0;border-bottom:1px solid var(--line)}
+  table.simples.empilha td{border:0;padding:1px 0}
+  table.simples.empilha td[data-r]::before{content:attr(data-r) ": ";color:var(--muted);font-size:.8rem}
+}
+.botao{font:inherit;font-weight:600;padding:10px 16px;border-radius:9px;border:1px solid var(--agua);background:transparent;color:var(--agua);cursor:pointer}
+.metodo p,.metodo li{max-width:68ch}
+footer.rodape{border-top:1px solid var(--line);padding:16px 0 32px;font-size:.84rem;color:var(--muted)}
+.carregando{padding:40px 0;text-align:center;color:var(--muted)}
+:focus-visible{outline:3px solid var(--cobre);outline-offset:2px}
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="wrap">
+    <div class="linha">
+      <div class="marca">Radar de Preços <span>BBB</span></div>
+      <div class="data-topo" id="dataTopo"></div>
+    </div>
+    <nav class="abas" aria-label="Seções">
+      <a href="#visao" data-rota="visao">Visão geral</a>
+      <a href="#produto" data-rota="produto">Produto</a>
+      <a href="#concorrentes" data-rota="concorrentes">Concorrentes</a>
+      <a href="#metodo" data-rota="metodo">Método</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap" id="app"><div class="carregando">Carregando…</div></main>
+<footer class="rodape wrap" id="rodape"></footer>
+<script>
+(function(){
+"use strict";
+var cache = {};
+function dados(nome){
+  if(!cache[nome]){
+    cache[nome] = fetch("dados/" + nome, {cache:"no-cache"}).then(function(r){
+      if(!r.ok) throw new Error("não foi possível ler " + nome + " (" + r.status + ")");
+      return r.json();
+    });
+  }
+  return cache[nome];
+}
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function erroTxt(e){
+  if(!e) return "";
+  var m = /^robots\.txt respondeu (\d+)/.exec(e);
+  if(m) return "O site não permite leitura automática (código " + m[1] + ").";
+  return e.replace(/^rodízio:/, "leitura em partes:").replace(/; rodízio:/g, "; leitura em partes:").replace(/^corte:/, "lido em parte:");
+}
+function urlOk(u){ return typeof u === "string" && /^https?:\/\//i.test(u) ? u : null; }
+function link(u, txt){
+  var ok = urlOk(u);
+  return ok ? '<a href="' + esc(ok) + '" target="_blank" rel="noopener noreferrer">' + esc(txt) + "</a>" : esc(txt);
+}
+var nfBRL = new Intl.NumberFormat("pt-BR", {style:"currency", currency:"BRL", maximumFractionDigits:0});
+var nf1 = new Intl.NumberFormat("pt-BR", {minimumFractionDigits:1, maximumFractionDigits:1});
+var nf0 = new Intl.NumberFormat("pt-BR", {maximumFractionDigits:0});
+var nf2 = new Intl.NumberFormat("pt-BR", {maximumFractionDigits:2});
+function brl(v){ return v == null ? "—" : nfBRL.format(v); }
+function idx(v){ return v == null ? "—" : nf1.format(v); }
+function pct(v){ return v == null ? "—" : (v > 0 ? "+" : "") + nf1.format(v) + "%"; }
+function dataBR(iso){
+  if(!iso) return "—";
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? m[3] + "/" + m[2] + "/" + m[1] : iso;
+}
+function horaBR(iso){
+  var m = /T(\d{2}):(\d{2})/.exec(iso || "");
+  return m ? m[1] + "h" + m[2] : "";
+}
+function nPares(n){ return n + (n === 1 ? " par" : " pares"); }
+function classePos(p){
+  if(p === "mais cara") return "cara";
+  if(p === "na média") return "media";
+  if(p === "mais barata") return "barata";
+  return "sem";
+}
+function classeIdx(v){ return v == null ? "sem" : v > 105 ? "cara" : v >= 95 ? "media" : "barata"; }
+function pillIdx(v){ return '<span class="pill ' + classeIdx(v) + '">' + idx(v) + "</span>"; }
+var CAT = {banheira:"Banheiras", spa:"Spas", ofuro:"Ofurôs", infantil:"Infantis", sauna:"Saunas", pet:"Pet", acessorio:"Acessórios"};
+var FAIXA = {entrada:"Entrada", intermediaria:"Intermediária", premium:"Premium", todas:"Todas as faixas"};
+function semAcento(s){ return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+var app = document.getElementById("app");
+function erro(e){ app.innerHTML = '<div class="cartao vazio">Não consegui carregar os dados: ' + esc(e.message) + "</div>"; }
+
+/* ------------------------------------------------------------ visão geral */
+function barras(itens, max){
+  max = Math.max(max || 0, 160);
+  return '<div class="barras">' + itens.map(function(it){
+    var v = it.v, w = v == null ? 0 : Math.min(v / max * 100, 100);
+    return '<div class="barra"><div class="nome">' + esc(it.nome) + (it.n != null ? ' <span class="muted small num">(' + it.n + ")</span>" : "") + "</div>" +
+      '<div class="trilho" role="img" aria-label="' + esc(it.nome + " índice " + idx(v)) + '"><div class="enche' + (v > 100 ? " acima" : "") + '" style="width:' + w.toFixed(1) + '%"></div>' +
+      '<div class="ref" style="left:' + (100 / max * 100).toFixed(1) + '%"></div></div>' +
+      '<div class="v">' + idx(v) + "</div></div>";
+  }).join("") + '</div><div class="legenda-ref">Traço vertical = 100 (mesmo preço da mediana). Barra cobre: BBB mais cara; barra verde: mais barata.</div>';
+}
+function itemProd(r, i){
+  var d = [];
+  if(r.variante) d.push(esc(r.variante));
+  d.push("BBB " + brl(r.preco) + " · mediana " + brl(r.mediana) + " · " + nPares(r.n));
+  if(r.mais_barato) d.push("mais barato: " + esc(r.mais_barato) + " " + brl(r.mais_barato_preco));
+  return '<li><a class="item" href="#produto-' + encodeURIComponent(r.sku) + '"><span class="t"><span class="rank">' + (i + 1) + "</span>" + esc(r.nome) +
+    '</span><span class="p">' + pillIdx(r.indice) + '</span><span class="d">' + d.join(" · ") + "</span></a></li>";
+}
+function renderVisao(){
+  Promise.all([dados("resumo.json"), dados("alertas.json"), dados("concorrentes.json"), dados("produtos.json")]).then(function(x){
+    var r = x[0], al = x[1], cc = x[2], h = "";
+    var noSite = {}; x[3].produtos.forEach(function(p){ noSite[p.sku] = 1; });
+    h += '<p class="frase">' + esc(r.frase || "Sem índice calculado nesta coleta.") + "</p>";
+    var faixaTxt = r.tem_faixa ? "da faixa " + esc((FAIXA[r.faixa_bbb] || r.faixa_bbb || "").toLowerCase()) : "equivalentes";
+    h += '<div class="grade g2 g4">';
+    h += '<div class="cartao kpi destaque"><div class="rot">Índice da BBB</div><div class="val">' + idx(r.indice.indice) + '</div><div class="sub">100 = mediana dos concorrentes ' + faixaTxt + " · " + r.indice.n + " produtos</div></div>";
+    h += '<div class="cartao kpi"><div class="rot">Mais cara</div><div class="val c-cara">' + r.posicao.mais_cara + '</div><div class="sub">índice acima de 105</div></div>';
+    h += '<div class="cartao kpi"><div class="rot">Na média</div><div class="val c-media">' + r.posicao.na_media + '</div><div class="sub">índice de 95 a 105</div></div>';
+    h += '<div class="cartao kpi"><div class="rot">Mais barata</div><div class="val c-barata">' + r.posicao.mais_barata + '</div><div class="sub">índice abaixo de 95</div></div>';
+    h += "</div>";
+    h += '<p class="small muted">' + r.n_produtos_bbb + " produtos BBB no site; " + r.posicao.sem_par_faixa + " sem par na faixa da BBB e " + r.posicao.sem_par + " sem nenhum equivalente coletado.</p>";
+
+    var cats = Object.keys(r.por_categoria).map(function(k){ return {nome: CAT[k] || k, v: r.por_categoria[k].indice, n: r.por_categoria[k].n}; })
+      .sort(function(a, b){ return (b.v || 0) - (a.v || 0); });
+    var maxV = Math.max.apply(null, cats.map(function(c){ return c.v || 0; }));
+    h += '<div class="grade lado" style="margin-top:12px">';
+    h += '<div class="cartao"><h3>Índice por categoria</h3>' + barras(cats, maxV) + "</div>";
+    if(r.por_faixa){
+      var fx = ["entrada", "intermediaria", "premium", "todas"].map(function(k){ return {nome: FAIXA[k], v: r.por_faixa[k] && r.por_faixa[k].indice, n: r.por_faixa[k] && r.por_faixa[k].n}; });
+      var maxF = Math.max.apply(null, fx.map(function(c){ return c.v || 0; }));
+      h += '<div class="cartao"><h3>Índice contra cada faixa de mercado</h3>' + barras(fx, maxF) +
+        '<p class="small muted">A BBB está na faixa ' + esc((FAIXA[r.faixa_bbb] || "").toLowerCase()) + '. O índice principal compara só com ela.</p></div>';
+    }
+    h += "</div>";
+
+    h += '<div class="grade lado">';
+    h += '<div><h2>Maior risco: 15 produtos mais caros</h2><div class="cartao"><ul class="lista">' + r.risco.map(itemProd).join("") + "</ul></div></div>";
+    h += '<div><h2>Maior folga: 10 produtos mais baratos</h2><div class="cartao"><ul class="lista">' + r.folga.map(itemProd).join("") + "</ul></div></div>";
+    h += "</div>";
+
+    h += "<h2>Alertas do dia <span class=\"muted num\" style=\"font-size:1rem\">(" + al.total + ")</span></h2><div class=\"cartao\">";
+    if(!al.grupos.length) h += '<div class="vazio">Nenhum alerta nesta coleta.</div>';
+    al.grupos.forEach(function(g){
+      h += "<details><summary><span><span class=\"tag " + esc(g.severidade) + "\">" + esc(g.severidade) + "</span> " + esc(g.rotulo) + "</span><span class=\"num muted\">" + g.n + "</span></summary><div>";
+      g.itens.slice(0, 40).forEach(function(it){
+        var sku1 = it.sku ? it.sku.split(",")[0].trim() : "";
+        var nome = noSite[sku1] ? '<a href="#produto-' + encodeURIComponent(sku1) + '">' + esc(it.produto) + "</a>" : esc(it.produto);
+        h += '<div class="alerta-item"><b>' + esc(it.empresa) + "</b> · " + nome + (it["var"] != null ? " <span class=\"num\">" + pct(it["var"]) + "</span>" : "") +
+          '<div class="small muted">' + esc(it.detalhe) + (urlOk(it.url) ? " · " + link(it.url, "abrir") : "") + "</div></div>";
+      });
+      if(g.n > 40) h += '<div class="small muted alerta-item">+ ' + (g.n - 40) + " no arquivo alertas.json</div>";
+      h += "</div></details>";
+    });
+    h += "</div>";
+
+    var f = r.fontes;
+    h += '<h2>Fontes da coleta</h2><div class="cartao"><div class="chips">' +
+      '<span class="chip st-ok">ok <b>' + f.ok + '</b></span><span class="chip st-parcial">parcial <b>' + f.parcial + '</b></span>' +
+      '<span class="chip st-bloqueado">bloqueada <b>' + f.bloqueado + '</b></span><span class="chip st-erro">erro <b>' + f.erro + "</b></span>" +
+      '<span class="chip">concorrentes com preço <b>' + r.n_concorrentes_com_preco + "</b></span></div>";
+    var ruins = cc.fontes.filter(function(x){ return x.status !== "ok"; });
+    if(ruins.length){
+      h += '<ul class="lista" style="margin-top:10px">' + ruins.map(function(x){
+        return '<li style="padding:8px 0"><span class="st-' + esc(x.status) + '"><b>' + esc(x.status) + "</b></span> · " + esc(x.empresa) +
+          (x.dominio ? ' <span class="muted small">(' + esc(x.dominio) + ")</span>" : "") + (x.erro ? '<div class="small muted">' + esc(erroTxt(x.erro)) + "</div>" : "") + "</li>";
+      }).join("") + "</ul>";
+    }
+    h += '<p class="small muted" style="margin-bottom:0"><a href="#concorrentes">Ver todas as fontes e o cadastro de concorrentes</a></p></div>';
+    app.innerHTML = h;
+  }).catch(erro);
+}
+
+/* ------------------------------------------------------------ produto */
+var buscaTermo = "";
+function listaBusca(prods, termo){
+  var t = semAcento(termo).trim(), partes = t.split(/\s+/).filter(Boolean);
+  var res = prods.filter(function(p){
+    var alvo = semAcento(p.nome + " " + p.sku + " " + (CAT[p.cat] || p.cat || ""));
+    return partes.every(function(q){ return alvo.indexOf(q) >= 0; });
+  });
+  if(!res.length) return '<div class="vazio">Nada encontrado para "' + esc(termo) + '".</div>';
+  return '<ul class="lista">' + res.slice(0, 120).map(function(p){
+    return '<li><a class="item" href="#produto-' + encodeURIComponent(p.sku) + '"><span class="t">' + esc(p.nome) + '</span><span class="p">' +
+      (p.indice != null ? pillIdx(p.indice) : '<span class="pill sem">sem par</span>') + '</span><span class="d">' + esc(p.sku) + " · " + esc(CAT[p.cat] || p.cat) +
+      " · " + brl(p.preco) + (p.n ? " · " + nPares(p.n) : "") + (p.nv > 1 ? " · " + p.nv + " medidas" : "") + "</span></a></li>";
+  }).join("") + "</ul>" + (res.length > 120 ? '<p class="small muted">Mostrando 120 de ' + res.length + ". Refine a busca.</p>" : "");
+}
+function blocoBusca(prods, aberto){
+  return '<div class="cartao"><label for="busca" class="small muted">Buscar produto BBB por nome ou código</label>' +
+    '<input id="busca" class="busca" type="search" autocomplete="off" placeholder="ex.: Harmonia, spa quadrado, BL19" value="' + esc(buscaTermo) + '">' +
+    '<div class="resultados" id="resultados"' + (aberto ? "" : " hidden") + ">" + (aberto ? listaBusca(prods, buscaTermo) : "") + "</div></div>";
+}
+function ligarBusca(prods){
+  var inp = document.getElementById("busca"), out = document.getElementById("resultados");
+  if(!inp) return;
+  inp.addEventListener("input", function(){
+    buscaTermo = inp.value;
+    out.hidden = !buscaTermo && !!out.dataset.fechavel;
+    out.innerHTML = listaBusca(prods, buscaTermo);
+  });
+  inp.addEventListener("focus", function(){ if(out.hidden){ out.hidden = false; out.innerHTML = listaBusca(prods, buscaTermo); } });
+}
+function specsTxt(s){
+  if(!s) return "";
+  var p = [];
+  if(s.comprimento_m && s.largura_m) p.push(nf2.format(Math.max(s.comprimento_m, s.largura_m)) + " x " + nf2.format(Math.min(s.comprimento_m, s.largura_m)) + " m");
+  if(s.lugares) p.push(nf0.format(s.lugares) + " lugar(es)");
+  if(s.material) p.push(s.material);
+  if(s.jatos != null) p.push(nf0.format(s.jatos) + " jatos");
+  if(s.mini_jatos) p.push(nf0.format(s.mini_jatos) + " mini jatos");
+  if(s.motores != null) p.push(nf0.format(s.motores) + " motobomba(s)");
+  if(s.potencia_cv != null) p.push(nf1.format(s.potencia_cv) + " cv");
+  if(s.aquecedor_incluso === true) p.push("aquecedor incluso");
+  if(s.cromo_incluso === true) p.push("cromo inclusa");
+  if(s.garantia_casco_anos != null) p.push("garantia casco " + nf0.format(s.garantia_casco_anos) + " anos");
+  return p.join(" · ");
+}
+function linhasPares(pares, ini){
+  return pares.map(function(p, i){
+    var id = "m" + ini + "_" + i;
+    return '<tr class="par' + (p.na_faixa ? "" : " fora") + '" data-alvo="' + id + '" tabindex="0" aria-expanded="false">' +
+      '<td class="c-classe"><span class="tag ' + esc(p.classe) + '">' + esc(p.classe) + "</span>" + (p.na_faixa ? "" : ' <span class="tag">' + esc(FAIXA[p.faixa] || p.faixa) + "</span>") + "</td>" +
+      '<td><b>' + esc(p.empresa) + "</b></td>" +
+      '<td class="c-prod">' + link(p.url, p.produto) + (p.variante ? '<div class="small muted">' + esc(p.variante) + "</div>" : "") + "</td>" +
+      '<td class="n" data-r="preço">' + brl(p.preco) + "</td>" +
+      '<td class="n" data-r="ajustado">' + brl(p.ajustado) + "</td>" +
+      '<td class="n" data-r="BBB vs ele">' + pct(p.dif_pct) + "</td>" +
+      '<td class="n" data-r="nota">' + (p.nota == null ? "—" : nf0.format(p.nota)) + "</td></tr>" +
+      '<tr class="motivos" id="' + id + '" hidden><td colspan="7"><b>Por que é par:</b> ' + esc(p.motivos || "—") + "<br><b>Ajuste:</b> " + esc(p.ajuste || "—") +
+      (specsTxt(p.specs) ? "<br><b>Ficha coletada:</b> " + esc(specsTxt(p.specs)) : "") + "</td></tr>";
+  }).join("");
+}
+function tabelaPares(pares, ini){
+  return '<div class="tab-rolagem"><table class="pares"><thead><tr><th>Classe</th><th>Concorrente</th><th>Produto / variante</th><th style="text-align:right">Preço</th>' +
+    '<th style="text-align:right">Comparável ajustado</th><th style="text-align:right">BBB vs ele</th><th style="text-align:right">Nota</th></tr></thead><tbody>' +
+    linhasPares(pares, ini) + "</tbody></table></div>";
+}
+function blocoNegociar(v, fatos){
+  var n = v.negociar, h = '<div class="cartao negociar" style="margin-top:16px"><h3>Como negociar</h3>';
+  n.avisos.forEach(function(a){ h += '<div class="aviso">' + esc(a) + "</div>"; });
+  n.comparacoes.forEach(function(c){
+    var bbb = c.diferencas.filter(function(d){ return d.lado === "bbb"; }),
+        conc = c.diferencas.filter(function(d){ return d.lado === "conc"; }),
+        neu = c.diferencas.filter(function(d){ return d.lado === "neutro"; });
+    h += '<div class="comp"><b>Contra o ' + esc(c.rotulo) + ":</b> " + esc(c.empresa) + " · " + link(c.url, c.produto) +
+      '<div class="small muted">preço ' + brl(c.preco) + " · comparável ajustado " + brl(c.ajustado) + " · BBB " + pct(c.dif_pct) + " em relação a ele</div>";
+    if(bbb.length) h += '<div style="margin-top:6px">A favor da BBB:</div><ul>' + bbb.map(function(d){ return '<li class="lado-bbb">' + esc(d.texto) + "</li>"; }).join("") + "</ul>";
+    if(conc.length) h += '<div style="margin-top:6px">A favor do concorrente:</div><ul>' + conc.map(function(d){ return '<li class="lado-conc">' + esc(d.texto) + "</li>"; }).join("") + "</ul>";
+    if(neu.length) h += '<ul>' + neu.map(function(d){ return "<li>" + esc(d.texto) + "</li>"; }).join("") + "</ul>";
+    if(!c.diferencas.length) h += '<div class="small muted" style="margin-top:6px">Nenhuma diferença de ficha entre os dados que os dois lados informam.</div>';
+    if(c.nao_verificado.length) h += '<div class="small muted">Não verificado no concorrente: ' + esc(c.nao_verificado.join(", ")) + ".</div>";
+    h += "</div>";
+  });
+  if(fatos && fatos.fatos.length){
+    h += "<div><b>Fatos públicos da BBB</b><ul>" + fatos.fatos.map(function(f){
+      return "<li>" + esc(f.texto) + ' <span class="small muted">(' + esc(f.fonte || "") + (f.conferir ? "; conferir a fonte antes de usar" : "") + ")</span></li>";
+    }).join("") + "</ul></div>";
+  }
+  if(n.perguntas.length){
+    h += '<div style="margin-top:8px"><b>3 perguntas para comparar maçã com maçã</b><ol>' + n.perguntas.map(function(q){ return "<li>" + esc(q) + "</li>"; }).join("") + "</ol></div>";
+  }
+  h += '<p class="small muted" style="margin-bottom:0">Montado por regras a partir dos dados coletados nos sites. Não sugere desconto nem valor.</p></div>';
+  return h;
+}
+function renderProduto(sku){
+  Promise.all([dados("produtos.json"), dados("fatos.json")]).then(function(x){
+    var prods = x[0].produtos, fatos = x[1];
+    if(!sku){
+      app.innerHTML = "<h1 style=\"font-size:1.7rem;margin-bottom:12px\">Produto</h1>" + blocoBusca(prods, true);
+      ligarBusca(prods);
+      var b = document.getElementById("busca"); if(b && window.matchMedia("(min-width:720px)").matches) b.focus();
+      return;
+    }
+    var meta = prods.filter(function(p){ return p.sku === sku; })[0];
+    if(!meta){ app.innerHTML = blocoBusca(prods, true) + '<div class="cartao vazio" style="margin-top:12px">Produto ' + esc(sku) + " não está nesta coleta.</div>"; ligarBusca(prods); return; }
+    app.innerHTML = '<div class="carregando">Carregando ' + esc(meta.nome) + "…</div>";
+    dados("produtos/" + meta.arq).then(function(d){ desenharProduto(d, prods, fatos); }).catch(erro);
+  }).catch(erro);
+}
+function desenharProduto(d, prods, fatos){
+  var vs = d.variantes;
+  var sel = 0;
+  vs.forEach(function(v, i){ if(v.variante === d.variante_padrao) sel = i; });
+  function corpo(i){
+    var v = vs[i], s = v.stats, h = "";
+    h += '<div class="stats">' +
+      '<div class="stat"><div class="rot">Preço BBB</div><div class="val">' + brl(v.preco) + "</div></div>" +
+      '<div class="stat"><div class="rot">Mediana</div><div class="val">' + brl(s.mediana) + "</div></div>" +
+      '<div class="stat"><div class="rot">Menor</div><div class="val">' + brl(s.menor) + "</div></div>" +
+      '<div class="stat"><div class="rot">Índice</div><div class="val">' + pillIdx(s.indice) + "</div></div>" +
+      '<div class="stat"><div class="rot">Posição</div><div class="val" style="font-family:var(--f-txt);font-size:1rem"><span class="c-' + ({cara:"cara",media:"media",barata:"barata"}[classePos(s.posicao)] || "media") + '">' + esc(s.posicao) + "</span></div></div>" +
+      '<div class="stat"><div class="rot">Pares</div><div class="val">' + s.n_pares + ' <span class="small muted">de ' + s.n_todas + "</span></div></div></div>";
+    h += '<div class="specs"><b>Ficha BBB:</b> ' + esc(specsTxt(v.specs) || "não verificada") + (v.url ? " · " + link(v.url, "ver no site da BBB") : "") + "</div>";
+    if(v.opcionais && v.opcionais.length) h += '<div class="specs"><b>Opcionais pagos:</b> ' + v.opcionais.map(function(o){ return esc(o.item) + " " + brl(o.preco); }).join(" · ") + "</div>";
+    if(s.indice_todas != null) h += '<div class="specs">Índice contra todas as faixas: ' + idx(s.indice_todas) + " (" + nPares(s.n_todas) + "). Pares de outra faixa aparecem esmaecidos e ficam fora do índice principal.</div>";
+    h += "<h2>Equivalentes</h2>";
+    h += v.pares.length ? '<div class="cartao">' + tabelaPares(v.pares, "e" + i) + '<p class="small muted" style="margin-bottom:0">Toque numa linha para ver por que é par e o ajuste de itens inclusos.</p></div>'
+      : '<div class="cartao vazio">Nenhum concorrente exato ou equivalente nesta medida.</div>';
+    if(v.referencia.length){
+      h += '<details style="margin-top:12px;border:0"><summary><b>Referência (' + v.referencia.length + ")</b> <span class=\"small muted\">parecidos, mas fora do índice</span></summary><div class=\"cartao\">" + tabelaPares(v.referencia, "r" + i) + "</div></details>";
+    }
+    h += blocoNegociar(v, fatos);
+    return h;
+  }
+  var p = d.painel, h = blocoBusca(prods, false);
+  h += '<div class="cab-prod" style="margin-top:18px"><h1>' + esc(d.nome) + '</h1><span class="muted small num">' + esc(d.sku) + " · " + esc(CAT[d.categoria] || d.categoria) + "</span></div>";
+  if(p){
+    var hist = [];
+    if(p.var_menor_preco_1d_pct != null) hist.push(pct(p.var_menor_preco_1d_pct) + " em 1 dia");
+    if(p.var_menor_preco_7d_pct != null) hist.push(pct(p.var_menor_preco_7d_pct) + " em 7 dias");
+    var txtH = hist.length ? "Menor preço dos pares (medida padrão): " + hist.join(", ") + ". " : "";
+    if(p.dias_seguidos_acima_mercado) txtH += p.dias_seguidos_acima_mercado + " dia(s) seguido(s) acima do mercado.";
+    if(txtH) h += '<p class="small muted">' + esc(txtH) + "</p>";
+  }
+  if(vs.length > 1){
+    h += '<label class="small muted" for="medida">Medida</label><br><select id="medida">' + vs.map(function(v, i){
+      return '<option value="' + i + '"' + (i === sel ? " selected" : "") + ">" + esc(v.variante || "única") + " · " + brl(v.preco) + (v.stats.indice != null ? " · índice " + idx(v.stats.indice) : "") + "</option>";
+    }).join("") + "</select>";
+  } else if(vs.length === 1 && vs[0].variante){
+    h += '<div class="small muted">Medida: ' + esc(vs[0].variante) + "</div>";
+  }
+  h += '<div id="corpo">' + (vs.length ? corpo(sel) : '<div class="cartao vazio">Sem variante coletada hoje.</div>') + "</div>";
+  app.innerHTML = h;
+  ligarBusca(prods);
+  var r = document.getElementById("resultados"); if(r) r.dataset.fechavel = "1";
+  var m = document.getElementById("medida");
+  if(m) m.addEventListener("change", function(){ document.getElementById("corpo").innerHTML = corpo(+m.value); });
+  window.scrollTo(0, 0);
+}
+app.addEventListener("click", function(ev){
+  var tr = ev.target.closest && ev.target.closest("tr.par");
+  if(!tr || ev.target.closest("a")) return;
+  var alvo = document.getElementById(tr.getAttribute("data-alvo"));
+  if(alvo){ alvo.hidden = !alvo.hidden; tr.setAttribute("aria-expanded", String(!alvo.hidden)); }
+});
+app.addEventListener("keydown", function(ev){
+  if((ev.key === "Enter" || ev.key === " ") && ev.target.matches && ev.target.matches("tr.par")){ ev.preventDefault(); ev.target.click(); }
+});
+
+/* ------------------------------------------------------------ concorrentes */
+var filtro = {q:"", tipo:"", rel:"", uf:"", preco:""}, limite = 150;
+function renderConcorrentes(){
+  dados("concorrentes.json").then(function(c){
+    var cad = c.cadastro;
+    function opcoes(campo, rot){
+      var v = {}; cad.forEach(function(r){ if(r[campo]) v[r[campo]] = 1; });
+      return '<select data-f="' + campo + '" aria-label="' + rot + '"><option value="">' + rot + ": todos</option>" + Object.keys(v).sort().map(function(k){
+        return '<option value="' + esc(k) + '"' + (filtro[campo === "tem_preco" ? "preco" : campo] === k ? " selected" : "") + ">" + esc(k) + "</option>";
+      }).join("") + "</select>";
+    }
+    var h = '<h1 style="font-size:1.7rem">Concorrentes</h1><p class="muted small">' + cad.length + " empresas no cadastro; " + c.fontes.length + " fontes com coleta automática em " + dataBR(c.data_coleta) + ".</p>";
+    h += '<div class="filtros"><input class="busca" type="search" data-f="q" placeholder="Buscar por nome ou cidade" value="' + esc(filtro.q) + '">' +
+      opcoes("tipo", "Tipo").replace('data-f="tipo"', 'data-f="tipo"') + opcoes("rel", "Relevância") + opcoes("uf", "UF") + opcoes("tem_preco", "Tem preço").replace('data-f="tem_preco"', 'data-f="preco"') + "</div>";
+    h += '<div id="tabCad"></div>';
+    h += '<details style="margin-top:20px;border:0"><summary><h2 style="margin:0">Fontes coletadas hoje (' + c.fontes.length + ")</h2></summary><div class=\"cartao tab-rolagem\"><table class=\"simples empilha\"><thead><tr><th>Status</th><th>Empresa</th><th>Fonte</th><th style=\"text-align:right\">Produtos</th><th>Observação</th></tr></thead><tbody>" +
+      c.fontes.map(function(f){
+        return '<tr><td data-r="status"><b class="st-' + esc(f.status) + '">' + esc(f.status) + "</b></td><td>" + esc(f.empresa) + '</td><td data-r="fonte" class="small">' + esc(f.dominio || f.fonte_id) + (f.canal && f.canal !== "site" ? " (" + esc(f.canal) + ")" : "") +
+          '</td><td data-r="produtos" class="num" style="text-align:right">' + (f.produtos == null ? "—" : nf0.format(f.produtos)) + '</td><td class="small muted">' + esc(erroTxt(f.erro)) + "</td></tr>";
+      }).join("") + "</tbody></table></div></details>";
+    app.innerHTML = h;
+    function desenhar(){
+      var q = semAcento(filtro.q);
+      var res = cad.filter(function(r){
+        if(filtro.tipo && r.tipo !== filtro.tipo) return false;
+        if(filtro.rel && r.rel !== filtro.rel) return false;
+        if(filtro.uf && r.uf !== filtro.uf) return false;
+        if(filtro.preco && r.tem_preco !== filtro.preco) return false;
+        if(q && semAcento(r.nome + " " + (r.cidade_uf || "")).indexOf(q) < 0) return false;
+        return true;
+      });
+      var ordemRel = {alta:0, "média":1, baixa:2};
+      res.sort(function(a, b){ return (ordemRel[a.rel] ?? 3) - (ordemRel[b.rel] ?? 3) || String(a.nome).localeCompare(String(b.nome), "pt-BR"); });
+      var t = '<p class="small muted">' + res.length + " empresa(s)</p>";
+      t += '<div class="cartao tab-rolagem"><table class="simples empilha"><thead><tr><th>Empresa</th><th>Tipo</th><th>Cidade/UF</th><th>Relevância</th><th>Tem preço</th><th>Coleta hoje</th></tr></thead><tbody>' +
+        res.slice(0, limite).map(function(r){
+          return "<tr><td><b>" + (urlOk(r.site) ? link(r.site, r.nome) : esc(r.nome)) + '</b></td><td data-r="tipo">' + esc(r.tipo || "—") + '</td><td data-r="cidade">' + esc(r.cidade_uf || "—") +
+            '</td><td data-r="relevância">' + esc(r.rel || "—") + '</td><td data-r="tem preço">' + esc(r.tem_preco) + '</td><td data-r="coleta hoje">' +
+            (r.coleta_hoje ? '<span class="st-' + esc(r.coleta_hoje) + '">' + esc(r.coleta_hoje) + "</span>" + (r.prod_hoje ? ' <span class="num small muted">' + r.prod_hoje + " prod.</span>" : "") : '<span class="muted">não coletado</span>') + "</td></tr>";
+        }).join("") + "</tbody></table></div>";
+      if(res.length > limite) t += '<p style="text-align:center"><button class="botao" id="mais">Mostrar mais ' + Math.min(150, res.length - limite) + "</button></p>";
+      document.getElementById("tabCad").innerHTML = t;
+      var b = document.getElementById("mais"); if(b) b.addEventListener("click", function(){ limite += 150; desenhar(); });
+    }
+    app.querySelectorAll("[data-f]").forEach(function(el){
+      el.addEventListener(el.tagName === "INPUT" ? "input" : "change", function(){ filtro[el.getAttribute("data-f")] = el.value; limite = 150; desenhar(); });
+    });
+    desenhar();
+  }).catch(erro);
+}
+
+/* ------------------------------------------------------------ método */
+function renderMetodo(){
+  dados("resumo.json").then(function(r){
+    app.innerHTML = '<div class="metodo"><h1 style="font-size:1.7rem">Método</h1>' +
+      "<h2>Como ler o índice</h2><p>O índice compara o preço da BBB com a <b>mediana</b> dos concorrentes equivalentes (o preço do meio, metade acima e metade abaixo). <span class=\"num\">100</span> = mesmo preço da mediana; <span class=\"num\">120</span> = BBB 20% mais cara; <span class=\"num\">90</span> = 10% mais barata.</p>" +
+      "<ul><li><b>Mais cara</b>: índice acima de 105.</li><li><b>Na média</b>: de 95 a 105.</li><li><b>Mais barata</b>: abaixo de 95.</li></ul>" +
+      "<p>O índice geral é a mediana dos índices dos produtos. Cada produto usa a medida padrão (a menor); na página do produto dá para trocar a medida.</p>" +
+      (r.tem_faixa ? "<h2>Faixa de mercado</h2><p>Cada concorrente cai numa faixa (entrada, intermediária ou premium) pela relação entre o preço típico dele e a mediana do mercado na mesma categoria e número de lugares. Marcas premium conhecidas entram direto em premium. O <b>índice principal</b> compara a BBB só com a faixa dela (hoje: " + esc((FAIXA[r.faixa_bbb] || r.faixa_bbb || "").toLowerCase()) + "). Os índices contra as outras faixas aparecem à parte.</p>" : "") +
+      "<h2>Classes de par</h2><ul><li><b>Exato</b>: mesmo tipo, lugares e material; comprimento até 5% e largura até 10% de diferença; jatos (grandes + mini) com diferença de até 2 ou 20%; mesmo número de motobombas; potência até 1,5 vez; produto disponível.</li><li><b>Equivalente</b>: mesmo tipo; jatos e motobombas do concorrente conhecidos; mesmos lugares (ou não informados, com medida até 5%); comprimento até 10% e largura até 20%; nem jatos nem motobombas com o dobro; nota mínima 70; sem kit de instalação nem versão personalizável.</li><li><b>Referência</b>: passou nos filtros básicos (categoria, hidro, lugares, medida até 20%/25%) e tem nota mínima 50, mas não fecha como equivalente. Aparece para consulta e fica fora do índice.</li></ul>" +
+      "<p>Cada par tem uma nota de 0 a 100 e os motivos (toque na linha da tabela). Cada concorrente entra com no máximo 3 pares por medida da BBB. Preço que variou mais de 30% contra a coleta anterior vira suspeito e sai do cálculo.</p>" +
+      "<h2>Ajuste de itens inclusos</h2><p>Na BBB, aquecedor, acionador digital e cromoterapia são opcionais pagos à parte. Quando o concorrente já inclui um desses itens e isso está escrito na página dele, o <b>comparável ajustado</b> tira do preço dele o valor do mesmo opcional na BBB, para comparar produto igual com produto igual. Se o site do concorrente não diz, o preço não é ajustado e o item aparece como <b>não verificado</b>.</p>" +
+      "<h2>Limites</h2><ul>" +
+      "<li><b>Preço de vitrine, sem frete.</b> É o preço anunciado no site; frete, instalação, condição de pagamento e desconto de balcão não entram.</li>" +
+      "<li><b>Mercado Livre fica fora</b>: a leitura de preço lá exige aplicativo autenticado, então concorrentes que vendem só no Mercado Livre não aparecem. O MadeiraMadeira e a loja de Campinas da BBB são coletados, mas não entram como preço da BBB.</li>" +
+      "<li><b>Sites que bloqueiam leitura automática</b> não são lidos; aparecem como fonte bloqueada.</li>" +
+      "<li><b>Rodízio de páginas</b>: lojas grandes são lidas em partes ao longo de alguns dias; nesses dias a fonte aparece como parcial e o produto usa a última leitura.</li>" +
+      "<li>O preço da BBB vem de banheirasbombanho.com.br; o bbbbanheiras.com.br só completa o que falta. Quando os dois divergem, sai um alerta.</li>" +
+      "<li>Os pares do topo de risco devem ser conferidos à mão antes de virar argumento de venda.</li>" +
+      "<li>O histórico guardado é de 30 dias; variações de 1 e 7 dias dependem dele.</li></ul>" +
+      "<h2>De onde vêm os dados</h2><p>Coleta automática diária às 6h (horário de Brasília) nos sites públicos dos concorrentes e da BBB. Última coleta: " + dataBR(r.data_coleta) + ", de " + horaBR(r.coleta_inicio) + " a " + horaBR(r.coleta_fim) + ". Nada aqui é estimado: o que o site não informa aparece como não verificado.</p></div>";
+  }).catch(erro);
+}
+
+/* ------------------------------------------------------------ rotas */
+function rota(){
+  var hsh = decodeURIComponent((location.hash || "#visao").slice(1));
+  var nome = hsh, arg = null;
+  if(hsh.indexOf("produto-") === 0){ nome = "produto"; arg = hsh.slice(8); }
+  if(["visao", "produto", "concorrentes", "metodo"].indexOf(nome) < 0) nome = "visao";
+  document.querySelectorAll("nav.abas a").forEach(function(a){
+    if(a.getAttribute("data-rota") === nome) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+  if(nome === "visao") renderVisao();
+  else if(nome === "produto") renderProduto(arg);
+  else if(nome === "concorrentes") renderConcorrentes();
+  else renderMetodo();
+  if(nome !== "produto") window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", rota);
+dados("resumo.json").then(function(r){
+  document.getElementById("dataTopo").textContent = "coleta " + dataBR(r.data_coleta) + " " + horaBR(r.coleta_fim);
+  document.getElementById("rodape").innerHTML = "Coleta de " + dataBR(r.data_coleta) + ", " + horaBR(r.coleta_inicio) + " a " + horaBR(r.coleta_fim) +
+    " (horário de Brasília). Fonte: sites públicos dos concorrentes e da BBB. Preço de vitrine, sem frete. Uso interno da equipe comercial da BBB.";
+}).catch(function(){});
+rota();
+})();
+</script>
+</body>
+</html>

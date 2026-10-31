@@ -1,0 +1,145 @@
+empresa_slug,empresa,tipo,cidade_uf,relevancia,plataforma,metodo,endpoint,tem_preco_publico,ativo,observacao,fonte_id,canal
+bbb,BBB,fabricante (cliente),Congonhal-MG,referencia,Magento 2,magento2_graphql,https://www.banheirasbombanho.com.br/graphql,True,True,"Domínio de referência de preço da BBB (mix maior, sitemap ok). Opções de tamanho viram variantes; opcionais pagos em atributos_json.",bbb-bombanho,site
+bbb,BBB,fabricante (cliente),Congonhal-MG,referencia,Magento 2,magento2_graphql,https://www.bbbbanheiras.com.br/graphql,True,True,"Segundo domínio da BBB, cadastro separado (preço, SKU e mix divergem do bombanho).",bbb-bbbbanheiras,site
+bbb,BBB,fabricante (cliente),Congonhal-MG,referencia,MadeiraMadeira (Next.js + Algolia),madeiramadeira_seller,https://www.madeiramadeira.com.br/lojista/bbb-banheiras-e-spa,True,True,Vitrine do lojista BBB BANHEIRAS E SPA (CNPJ 34.098.618/0001-58). preco_pix = preço à vista do marketplace.,bbb-madeiramadeira,marketplace:madeiramadeira
+bbb,BBB,loja BBB Campinas,Campinas-SP,referencia,Tray,tray_web_api,https://www.bbbcampinas.com.br,True,True,bbbcampinas.com.br (BBB Shopping Dom Pedro). Se é loja própria ou licenciada não foi verificado; tabela própria.,bbb-campinas,site
+bbb,BBB,fabricante (cliente),Congonhal-MG,referencia,Mercado Livre,mercadolivre_api,https://api.mercadolibre.com/sites/MLB/search?seller_id=<id>,True,False,DESATIVADO: busca exige app autenticado (OAuth) do Mercado Livre; HTML pede login. Ativar com app da BBB.,bbb-mercadolivre,marketplace:mercadolivre
+minas-banheiras,Minas Banheiras,fabricante,Pouso Alegre-MG,alta,WooCommerce,woo_store_api,https://www.minasbanheiras.com.br,True,True,Vizinha da fábrica BBB (~30 km). Pix: % da loja lido na página de um produto e aplicado ao preço (atributos_json.pix_origem).,minas-banheiras,site
+so-banheiras,Só Banheiras,fabricante,Pouso Alegre-MG,alta,Magento 1.9,magento1_html,https://www.sobanheiras.com.br/media/downloads/sitemap.xml,True,True,Grupo Lineaplás. robots bloqueia URLs com '?': só páginas .html do sitemap.,so-banheiras,site
+lineaplas,Lineaplas,fabricante,Pouso Alegre-MG,alta,WooCommerce,woo_store_api,https://www.lineaplas.com.br,True,True,Páginas HTML atrás de Cloudflare (403); Store API responde.,lineaplas,site
+fabrica-das-banheiras,Fábrica das Banheiras,fabricante,nan,alta,Shopify,shopify_products_json,https://www.fabricadasbanheiras.com.br,True,True,Selo 'até 10% OFF no Pix' sem valor exato: preco_pix fica vazio.,fabrica-das-banheiras,site
+splaz-banheiras,Splaz Banheiras,fabricante,nan,alta,Shopify,shopify_products_json,https://www.splazbanheiras.com.br,True,True,Responde 429 se martelar: 1 retry após espera. Pix e parcelas: regra da loja lida numa página de produto.,splaz-banheiras,site
+fabrica-de-spas,Fábrica de Spas / Fábrica de Banheiras,fabricante,São Paulo-SP,media,WooCommerce,woo_store_api,https://fabricadespas.com.br,True,True,nan,fabrica-de-spas,site
+hidro-fiber-do-brasil,Hidro Fiber do Brasil,fabricante,nan,media,WooCommerce,woo_store_api,https://hidrofiberdobrasil.com.br,True,True,Descrição traz várias configurações; o preço é da 'Configuração selecionada' da página (lida no HTML).,hidro-fiber-do-brasil,site
+hidromundi-banheiras,Hidromundi Banheiras,fabricante,nan,media,Tray,tray_web_api,https://www.hidromundibanheiras.com.br,True,True,Preço base sem adicionais (aquecedor etc. em atributos_json.opcionais).,hidromundi-banheiras,site
+aqually-banheiras,Aqually Banheiras,fabricante,nan,media,Tray,tray_html_datalayer,https://www.aquallybanheiras.com.br/loja/arquivos/1018229/sitemaps/sitemap_1.xml,True,True,Variantes = kits de configuração (listSku do dataLayer).,aqually-banheiras,site
+aquaplas,Aquaplas,fabricante,Campinas-SP,media,Tray,tray_web_api,https://www.aquaplas.com.br,True,True,Grupo Stamplas; linhas Basic/Standard/Premium como variações.,aquaplas,site
+show-banho,Show Banho,loja regional / revenda multimarcas,Curitiba-PR,media,Tray,tray_web_api,https://www.showbanho.com.br,True,True,nan,show-banho,site
+doka-bath-works-immersi,Doka Bath Works / Immersi,importador/fabricante,Navegantes-SC,baixa,Tray,tray_web_api,https://homespa.dokabathworks.com.br,True,True,Loja Doka Home Spa (premium). dokabathworks.com.br bloqueia robôs no robots: não usado.,doka-home-spa,site
+jp-banheiras,JP Banheiras,fabricante,nan,media,Nuvemshop,nuvemshop_sitemap_variants,https://dcdn-us.mitiendanube.com/stores/001/542/515/themes/common/sitemap.xml.gz,True,True,Pix publicado por variante (5% no Pix/boleto).,jp-banheiras,site
+hidrogas-piscinas,Hidrogás Piscinas,loja regional,São José dos Campos-SP,media,Nuvemshop,nuvemshop_sitemap_variants,https://acdn-us.mitiendanube.com/stores/003/109/242/themes/common/sitemap.xml.gz,False,True,Hoje 'Sob Consulta' (sem_preco). Mantida para alertar quando publicar preço; praça da loja BBB de Taubaté/SJC.,hidrogas-piscinas,site
+brasil-banheiras,Brasil Banheiras,fabricante,nan,alta,Vnda,vnda_data_variant,https://www.brasilbanheiras.com.br,True,True,robots: Crawl-delay 10 s. Listagens trazem o preço da variante padrão de todos; variantes completas em rodízio diário (log informa o corte).,brasil-banheiras,site
+banheiras-acqualine,Banheiras Acqualine,fabricante,nan,media,WooCommerce (Store API desativada),sitemap_jsonld,https://banheirasacqualine.com.br/product-sitemap.xml,True,True,JSON-LD Product + data-product_variations (WooCommerce).,banheiras-acqualine,site
+cariri-banheiras,Cariri Banheiras,fabricante/loja,Juazeiro do Norte-CE,baixa,WooCommerce,woo_store_api,https://cariribanheiras.com.br,True,True,nan,cariri-banheiras,site
+wt-fibras,WT Fibras Spas e Banheiras,fabricante,São Paulo-SP,media,WooCommerce,woo_store_api,https://loja.wtfibras.com.br,True,True,nan,wt-fibras,site
+rc-banheiras,RC Banheiras,fabricante,nan,alta,WooCommerce,woo_store_api,https://rcbanheiras.com.br,True,True,Lidera busca no ML; inclui aquecedor e cromoterapia no preço em vários modelos.,rc-banheiras,site
+aurum-banheiras-e-spa,Aurum Banheiras e Spa,fabricante,Cascavel-PR,media,WooCommerce,woo_store_api,https://aurumbanheirasespa.com.br,True,True,nan,aurum-banheiras-e-spa,site
+gold-banheiras,Gold Banheiras,fabricante,Cascavel-PR,media,WooCommerce,woo_store_api,https://goldbanheiras.com.br,True,True,nan,gold-banheiras,site
+amazon-spa,Amazon Spa (rede),loja regional / marca própria,Salvador-BA (rede BA/PR/SP),media,WooCommerce,woo_store_api,https://amazonspasalvador.com.br,True,True,Mesmo catálogo nas unidades; Salvador é a referência.,amazon-spa,site
+amazon-spa,Amazon Spa (rede),loja regional / marca própria,Ribeirão Preto-SP,baixa,WooCommerce,woo_store_api,https://amazonsparibeirao.com.br,True,True,Unidade Ribeirão Preto (preço pode diferir da rede).,amazon-spa-ribeirao,site
+casa-do-spa,Casa do Spa,revenda multimarca (Jacuzzi),Curitiba-PR,media,WooCommerce (Store API antiga),woo_store_api,https://casadospashop.com.br,True,True,"Store API antiga: valor em reais inteiros (sem centavos), conferido com a página (J220 L = R$ 77.335). Preço = 'à vista por'. Cartão 10x no HTML (não coletado).",casa-do-spa,site
+versatil-banheiras,Versátil Banheiras,fabricante,Senador Canedo-GO,alta,WordPress (CPT produtos),wp_rest_html,https://versatilbanheiras.com.br/wp-json/wp/v2/produtos,True,True,Praça de Goiânia (showroom BBB). Preço 'à vista' vai em atributos_json; preco_por = total no cartão. Inclui instalação em parte dos modelos.,versatil-banheiras,site
+veneza-piscinas,Veneza Piscinas,loja de piscina (revenda Albacete),Recife-PE,baixa,WooCommerce antigo,sitemap_jsonld,https://loja.venezapiscinas.com.br/product-sitemap.xml,True,True,nan,veneza-piscinas,site
+cooper-fibra-banheiras,Cooper Fibra Banheiras,fabricante,São Paulo-SP,baixa,OpenCart,opencart_html,https://www.cooperfibrabanheiras.com.br,True,True,robots bloqueia ?limit/&page/&sort: só categoria e produto.,cooper-fibra-banheiras,site
+personalizze-banheiras,Personalizze Banheiras,revenda multimarcas online,Santana de Parnaíba-SP,media,Cliquemania,cliquemania_lista,https://www.personalizzebanheiras.com.br/listadeprodutos.php,True,True,"Lista única com preço por; Pix, formato, pessoas e opcionais pagos lidos na página do item (rodízio diário).",personalizze-banheiras,site
+floripa-norte-spas,Floripa Norte Spas e Banheiras,loja regional,Florianópolis-SC,baixa,Hostinger Website Builder,hostinger_store_api,https://api-ecommerce.hostinger.com/store/store_01K008DY4NCTDZSTHJ6ZKYR3XR/products,True,True,nan,floripa-norte-spas,site
+telhanorte,Telhanorte,varejo (home center),São Paulo-SP,media,VTEX,vtex_catalog,https://www.telhanorte.com.br,True,True,Categoria inteira de banheiras (inclui Ouro Fino; marca em atributos_json.marca).,telhanorte,site
+acal-home-center,Acal Home Center,varejo (home center),Fortaleza-CE,baixa,VTEX,vtex_catalog,https://www.acalhomecenter.com.br,True,True,nan,acal-home-center,site
+faiberplas,Faiberplas (via Casas da Água),fabricante via varejo,nan,baixa,VTEX,vtex_catalog,https://www.casasdaagua.com.br,True,True,nan,faiberplas-casas-da-agua,site
+balaroti,Balaroti,varejo (home center),Curitiba-PR,baixa,Wake Commerce,sitemap_jsonld,https://www.balaroti.com.br/banheiro/banheira-spa-e-hidro-vertical,True,True,Lista pela categoria (JSON-LD ItemList).,balaroti,site
+amazon-spa,Amazon Spa (rede),loja regional / marca própria,Joinville-SC,baixa,WooCommerce,woo_store_api,https://amazonspajoinville.com.br,True,True,Unidade Joinville (preço pode diferir da rede).,amazon-spa-joinville,site
+banheiras-larocha,Banheiras Larocha,fabricante/loja,nan,media,WooCommerce,woo_store_api,https://banheiraslarocha.com.br,True,True,Parte das banheiras com preço 0 (sob consulta) vira sem_preco.,banheiras-larocha,site
+lojao-da-hidro,Lojão da Hidro,loja,nan,baixa,WooCommerce,woo_store_api,https://lojaodahidro.com.br,True,True,Mesmo grupo da Larocha (links cruzados).,lojao-da-hidro,site
+so-lojistas,Só Lojistas,atacado/revenda,nan,baixa,WooCommerce,woo_store_api,https://solojistas.com.br,True,True,nan,so-lojistas,site
+multiforma-ofuros,Multiforma Ofurôs,fabricante,nan,baixa,WooCommerce (modo catálogo),woo_store_api,https://multiforma.com.br,True,True,Modo catálogo: preço 0 vira sem_preco; mantida para alertar quando publicar preço.,multiforma-ofuros,site
+health-saunas,Health Saunas,fabricante (saunas),nan,baixa,WooCommerce,woo_store_api,https://health-saunas.com.br,True,True,Concorre só com as saunas BBB.,health-saunas,site
+pet-profissional-atacama,Pet Profissional (Atacama),revenda (banheiras pet),nan,baixa,WooCommerce,woo_store_api,https://petprofissional.com.br,True,True,Só banheiras pet (Vitoriana Pets).,pet-profissional-atacama,site
+kiva-wellness-brazil,Kiva Wellness Brazil,importador,nan,baixa,Shopify,shopify_products_json,https://kivawellness.com.br,True,True,nan,kiva-wellness-brazil,site
+jcn-piscinas,JCN Piscinas,loja de piscina,Salto-SP,baixa,Tray,tray_web_api,https://www.jcnpiscinas.com.br,True,True,nan,jcn-piscinas,site
+globalmar-piscinas,Globalmar Piscinas,loja de piscina,São Paulo-SP,baixa,Tray,tray_web_api,https://www.globalmar.com.br,True,True,Catálogo de ~1.250 itens; só nomes de banheira/spa/ofurô/sauna.,globalmar-piscinas,site
+clilmax,Clilmax,fabricante (freestanding/vitoriana),SP,baixa,Tray,tray_web_api,https://www.clilmax.com.br,True,True,nan,clilmax,site
+globaltech-brasil,Globaltech Brasil,revenda (saunas),Atibaia-SP,baixa,Tray,tray_html_datalayer,https://www.globaltechbrasil.com/loja/arquivos/424007/sitemaps/sitemap_1.xml,True,True,"Catálogo de 3,4 mil itens; só URLs de sauna/spa/banheira pelo sitemap.",globaltech-brasil,site
+quero-quero,Lojas Quero-Quero,varejo (home center),RS/SC/PR,baixa,VTEX,vtex_catalog,https://www.queroquero.com.br,True,True,nan,quero-quero,site
+abc-da-construcao,ABC da Construção,varejo (materiais de construção),rede (MG/DF/BA e outros),baixa,Wake Commerce,sitemap_jsonld,https://www.abcdaconstrucao.com.br/banheiras-spa,True,True,"Revende Ouro Fino, Jacuzzi, Immersi, Astra etc. (marca em atributos_json).",abc-da-construcao,site
+casa-mattos,Casa Mattos,varejo (home center regional),Zona da Mata-MG,baixa,Wake Commerce,sitemap_jsonld,https://www.casamattos.com.br/banheiro/banheiras-e-spas,True,True,nan,casa-mattos,site
+construmarques,Construmarques,varejo (home center),Jaú-SP,baixa,Wake Commerce,sitemap_jsonld,https://www.construmarques.com.br/banheiro-e-lavabo/banheiras-e-spas,True,True,nan,construmarques,site
+design-fino-banheiras,Design Fino Banheiras,fabricante/revenda,Guarulhos-SP,media,Loja Virtual (lojavirtual.com.br),sitemap_jsonld,https://www.designfinobanheiras.com.br/sitemap.xml,True,True,Pix publicado só no texto (não coletado).,design-fino-banheiras,site
+merito-comercial,Mérito Comercial,varejo multimarcas online,nan,baixa,Linx Commerce,sitemap_jsonld,https://www.meritocomercial.com.br/banheiras-spas,True,True,JSON-LD offers.price = preço à vista.,merito-comercial,site
+aquasol,Aquasol Banheiras e Piscinas,fabricante e varejo online,Tubarão-SC,media,Climba Commerce,sitemap_jsonld,https://feeds.climbacommerce.com.br/public/aquasol/sitemap/sitemap.xml.gz,True,True,WAF Azion bloqueia rajada: 1 req/2 s. ~970 URLs: rodízio diário de 400 páginas (catálogo completo a cada 3 dias).,lojas-aquasol,site
+mac-metais,Mac Metais,loja (vitorianas vintage),nan,baixa,Nuvemshop,nuvemshop_sitemap_variants,https://www.macmetais.com.br/sitemap.xml.gz,True,True,nan,mac-metais,site
+o-magnata-banheira-vitoriana,O Magnata Banheira Vitoriana,fabricante/loja,nan,media,OpenCart,opencart_html,https://www.omagnatabanheiravitoriana.com.br,True,True,nan,o-magnata-banheira-vitoriana,site
+pretty-jet,Pretty Jet,fabricante,nan,media,OpenCart (loja.prettyjet.com.br),opencart_html,https://loja.prettyjet.com.br,True,True,Site institucional sem preço; preço na loja OpenCart.,pretty-jet,site
+evolucao-pet,Evolução Pet,loja (equipamento veterinário),São Paulo-SP,baixa,PrestaShop,sitemap_jsonld,https://www.evolucaopet.com.br/sitemap_shop_1.xml,True,True,Concorre só com as banheiras pet BBB.,evolucao-pet,site
+hidro-forte,Hidro Forte,fabricante/loja,nan,media,Loja Integrada,sitemap_jsonld,https://www.hidroforte.com.br/sitemap/product-1.xml,True,True,WAF da Loja Integrada responde 403 a robô: esperado 'bloqueado'.,hidro-forte,site
+deca-dexco,Deca (Loja Dexco),fabricante (louças/banheiras),nan,baixa,VTEX,vtex_catalog,https://www.lojadexco.com.br,True,True,WAF responde 403 inclusive ao robots.txt: esperado 'bloqueado'.,deca-dexco,site
+elevato,Elevato,varejo multimarcas,RS,baixa,headless Vercel,sitemap_jsonld,https://www.elevato.com.br/sitemap.xml,True,True,Vercel Security Checkpoint devolve 429 para robô: esperado 'bloqueado'.,elevato,site
+atacadao-da-hidro,Atacadão da Hidro,fabricante/loja,Novo Horizonte-SP,media,Loja Integrada,sitemap_jsonld,https://www.atacadaodahidro.com.br/sitemap.xml,True,True,WAF da Loja Integrada responde 403 a robô: esperado 'bloqueado'.,atacadao-da-hidro,site
+ouro-fino,Ouro Fino (Ouro Fino Shop),revenda autorizada,nan,media,Loja Integrada,sitemap_jsonld,https://www.ourofinoshop.com.br/sitemap.xml,True,True,Loja Integrada (403 para robô). Preço Ouro Fino também vem pela Telhanorte.,ouro-fino-shop,site
+leroy-merlin,Leroy Merlin,varejo (home center),nan,media,própria,sitemap_jsonld,https://www.leroymerlin.com.br/sitemap.xml,True,True,robots.txt responde 403 para robô: esperado 'bloqueado'.,leroy-merlin,site
+primavera-banheiras,Primavera Banheiras,fabricante,nan,alta,Mercado Livre (loja oficial),mercadolivre_api,official_store_id=370268,True,False,DESATIVADO: só vende no Mercado Livre; API exige app autenticado.,primavera-banheiras,marketplace:mercadolivre
+total-hidro,Total Hidro Banheiras,fabricante,nan,media,Mercado Livre,mercadolivre_api,nan,True,False,DESATIVADO: preço só no Mercado Livre (exige app autenticado).,total-hidro,marketplace:mercadolivre
+serena-banheiras-e-spas,Serena Banheiras e Spas,fabricante,nan,baixa,Mercado Livre,mercadolivre_api,seller_id=216125395,True,False,DESATIVADO: Mercado Livre (exige app autenticado).,serena-banheiras-e-spas,marketplace:mercadolivre
+king-banheiras,King Banheiras,fabricante,São Paulo-SP,baixa,Mercado Livre,mercadolivre_api,nan,True,False,DESATIVADO: preço só no Mercado Livre.,king-banheiras,marketplace:mercadolivre
+real-banheiras,Real Banheiras,fabricante,nan,baixa,Mercado Livre,mercadolivre_api,nan,True,False,DESATIVADO: preço só no Mercado Livre.,real-banheiras,marketplace:mercadolivre
+espaco-deks-banheiras,Espaço Deks Banheiras,fabricante,nan,baixa,Mercado Livre,mercadolivre_api,seller_id=1446226292,True,False,DESATIVADO: Mercado Livre.,espaco-deks-banheiras,marketplace:mercadolivre
+mb-banheiras,MB Banheiras,fabricante,Santa Bárbara d'Oeste-SP,baixa,Mercado Livre,mercadolivre_api,nan,True,False,DESATIVADO: Mercado Livre + Instagram.,mb-banheiras,marketplace:mercadolivre
+hidrozen,Hidrozen,fabricante,Congonhal-MG,alta,landing própria + Mercado Livre,manual,https://hidrozen.com.br/,True,False,DESATIVADO: mesma cidade da fábrica BBB; landing com poucos preços soltos (sem ficha por produto) e ML. Cliente oculto / ML com app.,hidrozen,site
+ferreira-costa,Ferreira Costa,varejo (home center),Recife-PE,baixa,Next.js próprio,nextdata_categoria,https://ferreiracosta.com/Categoria/banheiras,True,False,DESATIVADO nesta versão: 3 produtos; adaptador __NEXT_DATA__ específico não implementado.,ferreira-costa,site
+unique-spa,Unique SPA (via revendas),fabricante,nan,baixa,"revendas (Bonatto, Bello Bagno)",manual,nan,True,False,DESATIVADO: preço só em revendas via busca (/pesquisa).,unique-spa,site
+fibertec,Fibertec,fabricante,Florianópolis-SC,baixa,WordPress página única,manual,https://lojafibertec.com.br/,True,False,DESATIVADO: 6 preços soltos numa página única.,fibertec,site
+jet-pool-spas,Jet Pool Spas,fabricante,Imbituba-SC,baixa,WordPress institucional,manual,https://jetpool.com.br,False,False,DESATIVADO: preço em texto livre nas páginas de linha.,jet-pool-spas,site
+beny,Beny Lar e Construção,varejo,Manaus-AM,baixa,Tray,tray_web_api,https://www.beny.com.br,True,False,DESATIVADO: catálogo de 10 mil itens para 1 banheira.,beny,site
+lazer-show,Lazer Show,revenda Mondialle,Belo Horizonte-MG,baixa,WooCommerce,woo_store_api,https://www.lazershow.ind.br,False,False,DESATIVADO: só 6 produtos com preço; resto por orçamento.,lazer-show,site
+jg-hidro,JG Hidro,nan,nan,baixa,Loja Integrada,manual,https://jghidro.lojaintegrada.com.br,True,False,DESATIVADO: Loja Integrada responde 403 a robô (31/10/2026).,jg-hidro,site
+casa-pool-sjc,Casa Pool SJC,nan,nan,baixa,Loja Integrada,manual,https://www.casapoolsjc.com.br,True,False,DESATIVADO: Loja Integrada responde 403 a robô (31/10/2026).,casa-pool-sjc,site
+tanto,Tanto,nan,nan,baixa,Jet NEO,manual,https://www.tanto.com.br/categoria/banheiras-spas,True,False,DESATIVADO: Sem JSON-LD; adaptador HTML Jet NEO não implementado.,tanto,site
+hidrospa-bauru,HidroSpa Bauru,nan,nan,baixa,2RS CMS,manual,https://hidrospabrasil.2rscms.com.br/sitemap.xml,True,False,DESATIVADO: Sem JSON-LD; adaptador HTML 2rscms não implementado.,hidrospa-bauru,site
+dr-hidro,Dr. Hidro,nan,nan,baixa,WordPress + landing pages,manual,https://drhidro.com.br,True,False,DESATIVADO: Preço em landing pages Elementor; sem ficha estruturada.,dr-hidro,site
+casa-das-aguas-teresina,Casa das Águas Teresina,nan,nan,baixa,Base44,manual,nan,True,False,DESATIVADO: API de entidades Base44; adaptador não implementado.,casa-das-aguas-teresina,site
+super-hidro-spas,Super Hidro Spas,nan,nan,baixa,PHP próprio,manual,https://www.spasuperhidro.com.br/modelos,True,False,DESATIVADO: Preço em texto livre por modelo.,super-hidro-spas,site
+ice-flow,Ice Flow,nan,nan,baixa,SPA React,manual,https://iceflow.com.br/precos,True,False,DESATIVADO: Página de preços pré-renderizada; adaptador não implementado.,ice-flow,site
+max-saunas-banheiras-ofuros,"Max Saunas, Banheiras e Ofurôs",nan,nan,baixa,Wix Stores,manual,https://www.maxbanheirasofuros.com.br,True,False,DESATIVADO: JSON-LD com preço 0 (sob consulta).,max-saunas-banheiras-ofuros,site
+roca-brasil,Roca Brasil Store,nan,nan,baixa,Magento 2,manual,https://www.rocabrasilstore.com.br/graphql,True,False,"DESATIVADO: GraphQL público, mas o adaptador Magento é o do cadastro BBB; Roca não vende banheira de hidro comparável.",roca-brasil,site
+magazine-luiza,Magazine Luiza,nan,nan,baixa,Magalu,manual,nan,True,False,DESATIVADO: Akamai bloqueia robô (403).,magazine-luiza,site
+elite-banheiras,Elite Banheiras,nan,nan,baixa,Mercado Livre,manual,nan,True,False,DESATIVADO: Só Mercado Livre (exige app autenticado).,elite-banheiras,site
+zdeque-banheiras,Zdeque Banheiras,nan,nan,baixa,Mercado Livre + Instagram,manual,nan,True,False,DESATIVADO: Só Mercado Livre/Instagram.,zdeque-banheiras,site
+porto-banheiras,Porto Banheiras,nan,nan,baixa,Mercado Livre,manual,nan,True,False,DESATIVADO: Só Mercado Livre.,porto-banheiras,site
+jucile-banheira-plenitud,Jucile Banheira Plenitud,nan,nan,baixa,Mercado Livre,manual,nan,True,False,DESATIVADO: Só Mercado Livre.,jucile-banheira-plenitud,site
+bidell-hidromassagem,Bidell Hidromassagem,nan,nan,baixa,Mercado Livre,manual,nan,True,False,DESATIVADO: Só Mercado Livre.,bidell-hidromassagem,site
+decortub,Decortub,nan,nan,baixa,Mercado Livre + Instagram,manual,nan,True,False,DESATIVADO: Só Mercado Livre/Instagram.,decortub,site
+abba-home,Abba Home,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,abba-home,site
+acqua-banheiras,Acqua Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,acqua-banheiras,site
+aqua-home-piscinas,Aqua Home Piscinas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,aqua-home-piscinas,site
+axell,Axell,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,axell,site
+banheira-spa-bh,Banheira Spa Bh,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,banheira-spa-bh,site
+banheiras-brasilia,Banheiras Brasilia,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,banheiras-brasilia,site
+casa-das-banheiras,Casa Das Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,casa-das-banheiras,site
+deck-tropical,Deck Tropical,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,deck-tropical,site
+difference-hydro,Difference Hydro,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,difference-hydro,site
+home-banheiras,Home Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,home-banheiras,site
+iguafibras,Iguafibras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,iguafibras,site
+innova-hidro,Innova Hidro,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,innova-hidro,site
+maxifibras,Maxifibras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,maxifibras,site
+mega-banheiras,Mega Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,mega-banheiras,site
+mundo-das-banheiras,Mundo Das Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,mundo-das-banheiras,site
+nature-spas,Nature Spas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,nature-spas,site
+ofuro-quero-banho,Ofuro Quero Banho,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,ofuro-quero-banho,site
+paradiso-banheiras-e-spas,Paradiso Banheiras E Spas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,paradiso-banheiras-e-spas,site
+premier-banheiras,Premier Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,premier-banheiras,site
+riolax,Riolax,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,riolax,site
+serras-banheiras,Serras Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,serras-banheiras,site
+universo-banheiras,Universo Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,universo-banheiras,site
+nicetubs,Nicetubs,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,nicetubs,site
+plenitude-banheiras,Plenitude Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,plenitude-banheiras,site
+fiberclass-hidromassagem,Fiberclass Hidromassagem,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,fiberclass-hidromassagem,site
+hidromassagens-marjorie,Hidromassagens Marjorie,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,hidromassagens-marjorie,site
+aquatec-piscinas,Aquatec Piscinas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,aquatec-piscinas,site
+todimo,Todimo,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,todimo,site
+calena,Calena,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,calena,site
+portobello,Portobello,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,portobello,site
+raya-banheiras-e-spas,Raya Banheiras E Spas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,raya-banheiras-e-spas,site
+richesse-spas,Richesse Spas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,richesse-spas,site
+banheiras-design,Banheiras Design,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,banheiras-design,site
+mondialle,Mondialle,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,mondialle,site
+hidrowill,Hidrowill,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,hidrowill,site
+igapo-piscinas,Igapo Piscinas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,igapo-piscinas,site
+spas-versati,Spas Versati,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,spas-versati,site
+sol-ar-mundo-agua,Sol Ar Mundo Agua,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,sol-ar-mundo-agua,site
+espaco-zen-e-lazer,Espaco Zen E Lazer,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,espaco-zen-e-lazer,site
+hot-weather-saunas,Hot Weather Saunas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,hot-weather-saunas,site
+sauna-bh-sparta,Sauna Bh Sparta,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,sauna-bh-sparta,site
+via-spas-e-banheiras,Via Spas E Banheiras,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,via-spas-e-banheiras,site
+almeida-hidro-spa,Almeida Hidro Spa,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,almeida-hidro-spa,site
+plaforte,Plaforte,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,plaforte,site
+manancial-piscinas,Manancial Piscinas,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,manancial-piscinas,site
+bela-metais,Bela Metais,nan,nan,baixa,nan,sem_preco_publico,nan,False,False,Sem preço público (vitrine/orçamento): só cliente oculto.,bela-metais,site

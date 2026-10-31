@@ -1,0 +1,87 @@
+name: Coleta diária
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 6h de Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: radar-diario
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      NEKT_LOCAL: "1"
+      NEKT_LOCAL_DIR: ${{ github.workspace }}/tabelas
+      COLETA_ORCAMENTO_S: "1500"
+      TZ: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Remontar histórico (últimos 30 dias)
+        run: python scripts/historico.py remontar --tabelas tabelas
+
+      - name: Coleta de preços
+        id: coleta
+        continue-on-error: true   # se cair, o site sai com a última coleta boa
+        run: python motor/coleta_precos.py
+
+      - name: Casamento de produtos
+        run: |
+          python motor/equivalencias.py > tabelas/equivalencias_saida.log
+          tail -n 1 tabelas/equivalencias_saida.log > tabelas/resumo_equivalencias.json
+
+      - name: Gerar dados do site
+        run: python scripts/gerar_site.py --tabelas tabelas --saida site/dados
+
+      - name: Guardar histórico e podar > 30 dias
+        run: python scripts/historico.py salvar --tabelas tabelas --dias 30
+
+      - name: Commit dos dados
+        run: |
+          DIA=$(python -c "import json;print(json.load(open('site/dados/resumo.json'))['data_coleta'])")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A historico site/dados
+          if git diff --cached --quiet; then
+            echo "sem mudança nos dados"
+          else
+            git commit -m "dados: coleta $DIA"
+            git push || { git pull --rebase && git push; }
+          fi
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Empacotar site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Publicar no Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Avisar se a coleta falhou
+        if: steps.coleta.outcome == 'failure'
+        run: |
+          echo "::warning::A coleta falhou; o site foi publicado com a última coleta disponível."
