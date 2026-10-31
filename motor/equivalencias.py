@@ -198,6 +198,8 @@ def forma_de(t):
         return "redonda"
     if re.search(r"\bde canto\b|\bcanto\b", t):
         return "canto"
+    if re.search(r"sextavad|hexagon", t):
+        return "sextavada"
     if "quadrad" in t:
         return "quadrada"
     if "oval" in t:
@@ -220,20 +222,54 @@ def forma_por_medida(L, W):
     return None
 
 
+FORMAS_PROPRIAS = ("canto", "sextavada")  # contorno próprio: não é quadrada, redonda nem alongada
+
+
 def _grupo_forma(f):
     if f in ("quadrada", "redonda", "quadrada_ou_redonda"):
         return "compacta"
     if f in ("retangular", "oval", "vitoriana", "alongada"):
         return "alongada"
-    return None  # canto, freestanding: o contorno não decide
+    if f in FORMAS_PROPRIAS:
+        return f  # canto e sextavada são grupo próprio
+    return None  # freestanding: o contorno não decide
 
 
 def forma_diverge(b, c):
     """Forma de um lado contra a do outro, usando a forma deduzida pela medida no lado que não informa.
-    Retangular x 2,00x2,00 (Imola x Aurum Sergipe) e Redonda x 1,80x1,40 (Desejo x Imperatriz) divergem."""
-    fb, fc = b["forma"] or b.get("forma_med"), c["forma"] or c.get("forma_med")
-    gb, gc = _grupo_forma(fb), _grupo_forma(fc)
-    return bool(gb and gc and gb != gc)
+    Retangular x 2,00x2,00 (Imola x Aurum Sergipe) e Redonda x 1,80x1,40 (Desejo x Imperatriz) divergem.
+    Canto e sextavada são grupo próprio: divergem de redonda/quadrada/retangular declaradas e um do outro
+    (Florença de canto x Spa Sextavado; Majory redonda x banheira de canto), mas não da forma deduzida pela
+    medida (uma banheira de canto de 1,60 x 1,60 tem planta quadrada)."""
+    def lado(x):
+        gf, gm = _grupo_forma(x["forma"]), _grupo_forma(x.get("forma_med"))
+        if gf in FORMAS_PROPRIAS:
+            return gf, True
+        if gf and gm and gf != gm:
+            return None, False  # o atributo contradiz a própria medida (Acqua Vip "Redonda" 0,80x1,00): não decide
+        return (gf, True) if gf else (gm, False)
+    (gb, eb), (gc, ec) = lado(b), lado(c)
+    if not (gb and gc) or gb == gc:
+        return False
+    if (gb in FORMAS_PROPRIAS and not ec) or (gc in FORMAS_PROPRIAS and not eb):
+        return False
+    return True
+
+
+PLANTA_QUADRADA_AMBIGUA = os.environ.get("EQUIV_PLANTA_AMBIGUA", "1") == "1"
+FORMAS_ESPECIAIS = ("redonda", "canto", "sextavada")
+
+
+def forma_ambigua(b, c):
+    """Um lado declara forma especial (redonda, de canto, sextavada) e o outro é de uma loja que separa os produtos
+    por forma e não declarou a deste (atributos_json.forma_nao_declarada, hoje a Aqually: 'Linha Dupla'/'Especial'),
+    com planta quadrada (C/L <= 1,05): a medida não distingue redonda, quadrada e de canto. Itatiaia 1,60 x 1,60
+    (de canto pela foto) contra a Majory redonda da BBB: não entra no índice. Sem a marca da loja a regra não vale
+    (aplicada a toda planta quadrada sem forma, derrubava 248 pares, inclusive o canto x canto conferido à mão
+    Veneza x Triângulo Mineiro, teste 106)."""
+    def amb(x):
+        return not x["forma"] and x.get("forma_incerta") and x.get("forma_med") == "quadrada_ou_redonda"
+    return (b["forma"] in FORMAS_ESPECIAIS and amb(c)) or (c["forma"] in FORMAS_ESPECIAIS and amb(b))
 
 
 def _pontos(t):
@@ -342,7 +378,9 @@ def normalizar(row):
         "inc": inc,
         "opcionais": opc,
         "forma": forma, "forma_med": forma_por_medida(f_(row.get("comprimento_m")), f_(row.get("largura_m"))),
-        "cromo_pontos": i_(a.get("cromo_pontos")), "entrada": entrada, "bloqueios": bloqueios, "marca": marca, "marca_premium": premium,
+        "cromo_pontos": i_(a.get("cromo_pontos")), "entrada": entrada, "forma_incerta": bool(b_(a.get("forma_nao_declarada"))),
+        "deck": b_(a.get("deck_incluso")) if b_(a.get("deck_incluso")) is not None else (
+            True if re.search(r"(?:\bcom|\bc/|\+)\s*deck\b", _low(nome + " " + variante)) else None), "bloqueios": bloqueios, "marca": marca, "marca_premium": premium,
         "status": ("placeholder" if _preco_placeholder(f_(row.get("preco_por"))) else (s_(row.get("status_preco")) or "ok")),
         "motivo_status": s_(row.get("motivo_status")),
     }
@@ -501,6 +539,13 @@ def nota_e_classe(b, c, dl, dw):
     elif not (b["forma"] and c["forma"]) and forma_diverge(b, c):
         exato = equiv = False
         tetos.append(("referencia", "forma diferente (deduzida pela medida)"))
+    elif PLANTA_QUADRADA_AMBIGUA and forma_ambigua(b, c):
+        exato = equiv = False
+        tetos.append(("referencia", "forma não verificada (planta quadrada pode ser redonda, quadrada ou de canto)"))
+    # deck incluso no preço do concorrente (Minas Monte Carlo "com deck": +R$ 2.999 contra o mesmo ofurô sem deck)
+    if c.get("deck") is True and b.get("deck") is not True:
+        exato = equiv = False
+        tetos.append(("referencia", "deck incluso no preço do concorrente"))
     if b["jatos"] and c["jatos"]:
         if abs(b["jatos"] - c["jatos"]) > max(2, 0.2 * b["jatos"]):
             exato = False

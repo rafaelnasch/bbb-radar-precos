@@ -151,12 +151,19 @@ CONCORRENTES = [
     dict(fonte_id="aqually-banheiras", empresa_slug="aqually-banheiras", empresa="Aqually Banheiras", tipo="fabricante", cidade_uf=None,
          relevancia="media", plataforma="Tray", metodo="tray_html_datalayer", canal="site",
          endpoint="https://www.aquallybanheiras.com.br/loja/arquivos/1018229/sitemaps/sitemap_1.xml", cats=TODAS,
-         tem_preco_publico=True, ativo=True, params=dict(url_regex=r"/linha-[a-z]+/.+"),
-         observacao="Variantes = kits de configuração (listSku do dataLayer)."),
+         tem_preco_publico=True, ativo=True,
+         params=dict(url_regex=r"/linha-[a-z]+/.+", pagamento_tray=True,
+                     forma_por_url={"/linha-canto/": "Canto", "/linha-redonda/": "Redonda", "/linha-retangular/": "Retangular"}),
+         observacao="Variantes = kits de configuração (listSku do dataLayer). Parcelas pela aba 'Formas de Pagamento' "
+                    "(maior N sem tarifa). Forma pela linha da URL (canto, redonda, retangular); Linha Dupla/Especial "
+                    "não dizem a forma."),
     dict(fonte_id="aquaplas", empresa_slug="aquaplas", empresa="Aquaplas", tipo="fabricante", cidade_uf="Campinas-SP",
          relevancia="media", plataforma="Tray", metodo="tray_web_api", canal="site",
          endpoint="https://www.aquaplas.com.br", cats=SO_PRINCIPAIS, tem_preco_publico=True, ativo=True,
-         observacao="Grupo Stamplas; linhas Basic/Standard/Premium como variações."),
+         params=dict(itens_serie_html=True, pagamento_tray=True),
+         observacao="Grupo Stamplas; linhas Basic/Standard/Premium como variações. Jatos, motor e itens inclusos pela "
+                    "tabela 'Itens de Série' da página (coluna da versão); parcelas pela aba 'Formas de Pagamento' "
+                    "(hoje 2x-10x com juros: parcelas_sem_juros vazio)."),
     dict(fonte_id="show-banho", empresa_slug="show-banho", empresa="Show Banho", tipo="loja regional / revenda multimarcas",
          cidade_uf="Curitiba-PR", relevancia="media", plataforma="Tray", metodo="tray_web_api", canal="site",
          endpoint="https://www.showbanho.com.br", cats=SO_PRINCIPAIS, tem_preco_publico=True, ativo=True, observacao=None),
@@ -188,17 +195,24 @@ CONCORRENTES = [
          endpoint="https://cariribanheiras.com.br", cats=TODAS, tem_preco_publico=True, ativo=True, observacao=None),
     dict(fonte_id="wt-fibras", empresa_slug="wt-fibras", empresa="WT Fibras Spas e Banheiras", tipo="fabricante", cidade_uf="São Paulo-SP",
          relevancia="media", plataforma="WooCommerce", metodo="woo_store_api", canal="site",
-         endpoint="https://loja.wtfibras.com.br", cats=TODAS, tem_preco_publico=True, ativo=True, observacao=None),
+         endpoint="https://loja.wtfibras.com.br", cats=TODAS, tem_preco_publico=True, ativo=True,
+         params=dict(ficha_html=True, garantia_padrao=3.0),
+         observacao="Medidas e lugares no bloco de ícones da página (Dimensões/Acomodações), lido por produto. "
+                    "Garantia: '3 anos de garantia' na faixa do site (regra da loja)."),
     dict(fonte_id="rc-banheiras", empresa_slug="rc-banheiras", empresa="RC Banheiras", tipo="fabricante", cidade_uf=None,
          relevancia="alta", plataforma="WooCommerce", metodo="woo_store_api", canal="site",
          endpoint="https://rcbanheiras.com.br", cats=TODAS, tem_preco_publico=True, ativo=True,
          observacao="Lidera busca no ML; inclui aquecedor e cromoterapia no preço em vários modelos."),
     dict(fonte_id="aurum-banheiras-e-spa", empresa_slug="aurum-banheiras-e-spa", empresa="Aurum Banheiras e Spa", tipo="fabricante",
          cidade_uf="Cascavel-PR", relevancia="media", plataforma="WooCommerce", metodo="woo_store_api", canal="site",
-         endpoint="https://aurumbanheirasespa.com.br", cats=TODAS, tem_preco_publico=True, ativo=True, observacao=None),
+         endpoint="https://aurumbanheirasespa.com.br", cats=TODAS, tem_preco_publico=True, ativo=True,
+         params=dict(lugares_por_travesseiro=True),
+         observacao="Mesmo catálogo da Gold. Lugares: nome, imagem ('8 PESSOAS') ou nº de travesseiros do que acompanha."),
     dict(fonte_id="gold-banheiras", empresa_slug="gold-banheiras", empresa="Gold Banheiras", tipo="fabricante", cidade_uf="Cascavel-PR",
          relevancia="media", plataforma="WooCommerce", metodo="woo_store_api", canal="site",
-         endpoint="https://goldbanheiras.com.br", cats=TODAS, tem_preco_publico=True, ativo=True, observacao=None),
+         endpoint="https://goldbanheiras.com.br", cats=TODAS, tem_preco_publico=True, ativo=True,
+         params=dict(lugares_por_travesseiro=True),
+         observacao="Lugares: nome, imagem ('SPA ISLA ... 8 PESSOAS') ou nº de travesseiros do que acompanha."),
     dict(fonte_id="amazon-spa", empresa_slug="amazon-spa", empresa="Amazon Spa (rede)", tipo="loja regional / marca própria",
          cidade_uf="Salvador-BA (rede BA/PR/SP)", relevancia="media", plataforma="WooCommerce", metodo="woo_store_api", canal="site",
          endpoint="https://amazonspasalvador.com.br", cats=TODAS, tem_preco_publico=True, ativo=True,
@@ -541,7 +555,10 @@ RETOMA_PRODUTO = re.compile(r"^(?:sobre este (?:item|produto)|especificac(?:ao|o
 
 def _corta_linha(linha):
     n = norm(linha)
-    pos = [n.find(m) for m in MARCADORES_CORTE if n.find(m) >= 0]
+    # marcador citado no meio de uma frase como nome de seção ("Os acessórios opcionais ... serão indicados ao lado
+    # em PRODUTOS RELACIONADOS e também no carrinho", BBB Campinas) não é o carrossel: não corta
+    pos = [n.find(m) for m in MARCADORES_CORTE if n.find(m) >= 0
+           and not re.search(r"\b(?:em|no|na|nos|nas|ao lado|aba|secao|campo)\s*[\"'“]?$", n[:n.find(m)])]
     if MARCADORES_CORTE_LINHA.search(n):
         pos.append(0)
     if not pos:
@@ -736,7 +753,8 @@ def extrai_medidas(texto):
     """Lista de (comprimento, largura, profundidade) em metros encontrados no texto.
     Diâmetro ('Ø 1,50 x 0,40 m', 'Diâmetro: 2,00 m'): comprimento = largura = Ø e o 2º número é a profundidade."""
     t0 = re.sub(r"[Øø⌀∅]", " diam ", str(texto or ""))  # Ø some no norm() (NFKD não decompõe)
-    t = norm(t0).replace("×", "x")
+    # "1,8 × 1,8 × 0,71 m" (Lineaplas): o × vira x antes do norm(), que descarta o que não é ASCII
+    t = norm(t0.replace("×", "x").replace("✕", "x"))
     # "(C) 2,90 (L) 2,20 x (A) 0,90": rótulos de comprimento/largura/altura no lugar do "x"
     t = re.sub(r"\(c\)\s*([\d.,]+)\s*(m|cm)?\s*x?\s*\(l\)\s*([\d.,]+)\s*(m|cm)?(?:\s*x?\s*\((?:a|p|h)\)\s*([\d.,]+))?",
                lambda m: " %s%s x %s%s%s " % (m.group(1), m.group(2) or "", m.group(3), m.group(4) or "",
@@ -800,7 +818,7 @@ def extrai_lugares(texto, permite_palavras=True):
 def extrai_material(texto):
     t = norm(texto)
     tem_acr = re.search(r"acril", t)
-    tem_gel = re.search(r"gel ?coat|gelcoat", t)
+    tem_gel = re.search(r"gel ?coat|gelcoat|\bem gel\b|material\s*:\s*gel\b", t)
     if tem_acr and not tem_gel:
         return "acrilico"
     if tem_gel and not tem_acr:
@@ -850,16 +868,17 @@ def extrai_jatos(texto):
     nome e 'Total de Jatos (...): 19' (total declarado vence a soma). Lista de opcionais não entra."""
     t = norm(sem_opcionais(texto))
     minis, jatos, totais = [], [], []
-    for m in re.finditer(_NUM + r"\s*(?:\(\w+\)\s*)?mini[\s-]?" + _JATO + r"(?=([^\n,;.]{0,25}))", t):
+    # "micro jatos" (WT Fibras: "08 Micro Jatos terapêuticos" + "04 Jatos Direcionável") são mini jatos
+    for m in re.finditer(_NUM + r"\s*(?:\(\w+\)\s*)?(?:mini|micro)[\s-]?" + _JATO + r"(?=([^\n,;.]{0,25}))", t):
         v = _n(m.group(1))
         if v:
             minis.append(((v, _chave_desc(m.group(2))), v))
-    for m in re.finditer(r"mini[\s-]?jat(?:o|oe)s?\s*[:=]\s*(\d{1,2})", t):  # só ":" ou "=": "mini jatos - 1 entrada" é o item seguinte da lista
+    for m in re.finditer(r"(?:mini|micro)[\s-]?jat(?:o|oe)s?\s*[:=]\s*(\d{1,2})", t):  # só ":" ou "=": "mini jatos - 1 entrada" é o item seguinte da lista
         minis.append(((int(m.group(1)), ""), int(m.group(1))))
-    for m in re.finditer(_NUM + r"\s*(?:\(\w+\)\s*)?(?:(turbo|super|maxi|micro)\s+)?" + _JATO + r"(?=([^\n,;.]{0,25}))", t):
+    for m in re.finditer(_NUM + r"\s*(?:\(\w+\)\s*)?(?:(turbo|super|maxi)\s+)?" + _JATO + r"(?=([^\n,;.]{0,25}))", t):
         ini = m.start()
         antes = t[max(0, ini - 6):ini]
-        if re.search(r"mini[\s-]?$", antes):
+        if re.search(r"(?:mini|micro)[\s-]?$", antes):
             continue
         if re.search(r"jat[a-z]*\b[^:=]{0,45}[:=]\s*(?:\d{1,2}\s+)?$", t[max(0, ini - 60):ini]):
             continue  # "Jatos Ajustáveis (PLW): 3 Jatos Direcionáveis": o número é valor do rótulo anterior
@@ -883,7 +902,7 @@ def extrai_jatos(texto):
     # rótulo com quantidade: "Jatos: 3", "Jatos Direcionáveis (BMH): 2", "jatos laterais = 4"
     rot = []
     # o valor não é medida ("jatos plus nas costas Tamanho: 2,20 x 2,20": o norm() junta as linhas)
-    for m in re.finditer(r"(?<!mini )(?<!mini-)(?<!total de )jat(?:o|oe)s?((?: [a-z]+){0,4})\s*(?:\([^)]{0,20}\))?\s*[:=]\s*(\d{1,2})\b(?![.,]\d)", t):
+    for m in re.finditer(r"(?<!mini )(?<!mini-)(?<!micro )(?<!micro-)(?<!total de )jat(?:o|oe)s?((?: [a-z]+){0,4})\s*(?:\([^)]{0,20}\))?\s*[:=]\s*(\d{1,2})\b(?![.,]\d)", t):
         rot.append(((int(m.group(2)), _chave_desc(m.group(1))), int(m.group(2))))
     # "Jatos: 3 | Jatos Direcionáveis: 2 | Jatos Ajustáveis: 1": o rótulo sem descritivo é o total quando bate com a soma
     sem = [v for k, v in rot if not k[1]]
@@ -979,7 +998,10 @@ def _flag_item(nome, texto, item_rx):
     """True = incluso de série; False = opcional/ausente; None = não dá para afirmar.
     Nome: 'sem'/'s/' antes do item = False ('S/ AQUECEDOR', 'S/AQUECEDOR'); 'com'/'c/'/'+' = True.
     Texto: negação explícita > item listado no que acompanha (linha '1 Aquecedor elétrico', 'AQUECEDOR DIGITAL 5000W'
-    dentro do kit) > item só na lista de opcionais = False. Item que o texto não cita fica None (não inventa)."""
+    dentro do kit) > item só na lista de opcionais = False. Item que o texto não cita fica None (não inventa).
+    Item que a mesma página põe na lista de opcionais ('Opcionais: ... aquecedor universal ..., cromoterapia') não
+    acende o incluso pelo texto, mesmo que outra frase diga 'Itens inclusos: aquecedor' (Aquaplas Nauta Basic:
+    a descrição é a mesma das três versões; o que vale é a lista de opcionais e a tabela de itens de série)."""
     rx = r"(?:" + item_rx + r")"
     n = norm(nome)
     if re.search(r"(?:\bsem|\bs/)\s*" + rx, n):
@@ -1002,20 +1024,29 @@ def _flag_item(nome, texto, item_rx):
            r"(?:^|\s)\d{1,2}\s+pontos?\s+de\s+" + rx]
     if any(re.search(p, t) for p in neg):
         return False
-    if any(re.search(p, t) for p in pos):
-        return True
+    # 1) item listado como linha do que acompanha (vence a lista geral de opcionais: kit da Aqually)
     # linha de lista do que acompanha: "1 Aquecedor elétrico analógico", "– 01 Cromoterapia", "AQUECEDOR DIGITAL 5000W"
     # (linha só com a palavra, como título de aba, não conta)
     # item com quantidade no meio de uma lista corrida ("...(Brinde) 01 Aquecedor digital", "; 01 Cromoterapia")
     # "01 Kit Cromoterapia com 2 pontos em led": kit com quantidade é item que acompanha
     if re.search(r"(?:^|[^\d.,/%])\d{1,2}\s+(?:un\.?\s+)?" + kit + rx + r"\b", t):
         return True
+    secao = ""
     for linha in base.split("\n"):
         ln = norm(linha)
         if re.match(r"^(?:[-*>\u2022]\s*)?(?:\d{1,2}\s+(?:un\.?\s+)?)?" + kit + rx + r"\b", ln) and len(ln.split()) >= 2:
             return True
+        # item sozinho na linha, dentro da lista "Itens inclusos:" (Aquasol Jacuzzi: "...Sistema de Drenagem: POP-UP\nAquecedor")
+        if re.match(r"^(?:[-*>\u2022]\s*)?" + rx + r"$", ln) and re.search(r"inclus|acompanha|de serie|vem com", secao):
+            return True
+        if re.match(r"^[^:]{3,40}:\s*$", ln):  # cabeçalho de seção ("ITENS INCLUSOS:", "ATENÇÃO:")
+            secao = ln
+    # 2) a mesma página põe o item na lista de opcionais: a frase corrida "Itens inclusos: aquecedor, ..." não vence
     if re.search(rx, norm(so_opcionais(texto))):
         return False
+    # 3) frase corrida que diz incluso
+    if any(re.search(p, t) for p in pos):
+        return True
     return None
 
 
@@ -1059,6 +1090,26 @@ def extrai_forma(texto, so_rotulo=False):
                      (r"\boval", "Oval"), (r"retangular", "Retangular")):
         if re.search(rx_, alvo):
             return rot
+    return None
+
+
+def extrai_travesseiros(texto):
+    """Nº de travesseiros/apoios de cabeça que acompanham ('8 TRAVESSEIROS (PRETO) APOIO DE CABEÇA', '07 Travesseiros
+    anatômicos'). Lista de opcionais não entra. Só um valor (ou o mesmo repetido) decide."""
+    t = norm(sem_opcionais(texto))
+    vals = {int(m.group(1)) for m in re.finditer(r"\b(\d{1,2})\s+(?:travesseiros?|apoios? de cabeca|encostos? de cabeca)\b", t)}
+    vals = {v for v in vals if 1 <= v <= 12}
+    return vals.pop() if len(vals) == 1 else None
+
+
+def extrai_deck(nome, texto):
+    """Deck incluso no preço: 'com deck' no nome/variante = True; 'sem deck' / 'não acompanha deck' = False;
+    'Acabamento: deck incluso' = True. O resto fica None."""
+    n, t = norm(nome), norm(sem_opcionais(texto))
+    if re.search(r"(?:\bsem|\bs/)\s*deck\b", n) or re.search(r"\bnao acompanha\s+(?:o\s+)?deck\b|\bsem deck\b|deck[^.\n]{0,20}(?:nao incluso|vendido separad|opcional)", t):
+        return False
+    if re.search(r"(?:\bcom|\bc/|\+)\s*(?:o\s+)?deck\b", n) or re.search(r"deck\s*(?:de madeira\s*)?(?:incluso|incluido)|acompanha\s+(?:o\s+)?deck\b", t):
+        return True
     return None
 
 
@@ -1410,6 +1461,20 @@ class Coletor(object):
         else:
             a = atributos(nome, variante, texto, attrs_base)
         ex_in = extra or {}
+        # lugares que a ficha não diz: nome da imagem do produto ("SIZE 8 PESSOAS") e, na Gold/Aurum, o nº de
+        # travesseiros (apoios de cabeça) da lista do que acompanha (Isla e Ibiza: 8 travesseiros = 8 lugares)
+        if a.get("lugares") is None and cat in ("spa", "ofuro", "banheira"):
+            if ex_in.get("lugares_imagem"):
+                a["lugares"] = ex_in["lugares_imagem"]
+                ex0["lugares_origem"] = "nome da imagem do produto"
+            elif self.p.get("lugares_por_travesseiro"):
+                tv = extrai_travesseiros(texto)
+                if tv:
+                    a["lugares"] = tv
+                    ex0["lugares_origem"] = "nº de travesseiros (apoios de cabeça) do que acompanha"
+        dk = extrai_deck(nome + " " + variante, texto)
+        if dk is not None and ex_in.get("deck_incluso") is None:
+            ex0["deck_incluso"] = dk
         if not ex_in.get("forma"):
             fm = (extrai_forma(nome + " " + variante) or extrai_forma(texto, so_rotulo=True)
                   or ("Freestanding" if re.search(r"\bfree ?standing\b", norm(texto)) else None))
@@ -1736,9 +1801,10 @@ def _woo_preco(pr, chave):
 
 
 def _woo_parcelas(price_html):
-    t = norm(html_txt(price_html or ""))
-    m = re.findall(r"(\d{1,2})\s*x[^.\n]{0,40}sem juros", t)
-    return max(int(x) for x in m) if m else None
+    """Parcelas sem juros do price_html da Store API. Mesma leitura da página (_parcelas_html): a regra antiga
+    ('10 x' + até 40 caracteres sem ponto + 'sem juros') perdia toda parcela de R$ 1.000 ou mais, porque o
+    separador de milhar é um ponto ('Em até 10 x de R$ 1.779,84 sem juros': 53 de 159 linhas da Aurum vazias)."""
+    return _parcelas_html(price_html or "")
 
 
 _RX_CONF = re.compile(r"(?im)^\s*configura[cç][aã]o\s+([A-Za-zÀ-ú][\wÀ-ú ]{1,25}?)\s*:\s*$")
@@ -1766,6 +1832,19 @@ def _texto_com_configuracao(texto, blocos, escolhido):
                 fim = mo.start()
             t = t.replace(bl[:fim], "\n", 1)
     return t
+
+
+def _ficha_icones_html(h):
+    """Pares título/descrição dos blocos de ícone do Elementor ('Dimensões' / '2.40 x 2.20 x 0.95', 'Acomodações' /
+    '7 Lugares') como linhas 'Título: valor'. Só os do produto (o 1º grupo antes de 'Compra Garantida')."""
+    pares = re.findall(r'(?is)class="elementor-icon-box-title"[^>]*>(.*?)</h\d>\s*(?:</div>\s*)?'
+                       r'(?:<p|<div)[^>]*class="elementor-icon-box-description"[^>]*>(.*?)</(?:p|div)>', h or "")
+    out = []
+    for t, d in pares:
+        t, d = re.sub(r"\s+", " ", html_txt(t)).strip(), re.sub(r"\s+", " ", html_txt(d)).strip()
+        if re.search(r"dimens|medida|tamanho|acomoda|lugares|capacidade|litros", norm(t)) and d and len(d) < 60:
+            out.append("%s: %s" % (t, d))
+    return "\n".join(dict.fromkeys(out))
 
 
 def ad_woo_store_api(c):
@@ -1837,14 +1916,39 @@ def ad_woo_store_api(c):
             conf_sel = (conf_ok, "primeira configuracao da descricao")
         else:
             texto_conf = texto
+        # WT Fibras: medidas e lugares só no bloco de ícones da página (Elementor "Dimensões 2.40 x 2.20 x 0.95")
+        if c.p.get("ficha_html") and p.get("permalink"):
+            try:
+                hp = c.f.texto(p["permalink"])
+                fic = _ficha_icones_html(hp)
+                if fic:
+                    texto = texto + "\n" + fic
+                    texto_conf = texto_conf + "\n" + fic
+            except (requests.RequestException, Bloqueado):
+                pass
         attrs = {a.get("name"): ", ".join(t.get("name", "") for t in a.get("terms") or []) for a in p.get("attributes") or []}
         base_a = {}
+        forma_attr = None
         for k, v in attrs.items():
             if re.search(r"lugar|pessoa", norm(k)):
                 base_a["lugares"] = extrai_lugares(v + " lugares") if re.search(r"\d", v) else extrai_lugares(v)
             if re.search(r"material", norm(k)) and extrai_material(v):
                 base_a["material"] = extrai_material(v)
+            # Lineaplas: atributo "Dimensões: 1,8 x 1,8 x 0,71" (323 de 326 linhas ficavam sem medida)
+            if re.search(r"dimens|medida", norm(k)):
+                md = list(dict.fromkeys(extrai_medidas(v)))
+                if len(md) == 1:
+                    base_a["comprimento_m"], base_a["largura_m"], base_a["profundidade_m"] = md[0]
+            if re.search(r"^forma(to)?$", norm(k)):
+                forma_attr = extrai_forma("forma: " + v, so_rotulo=True)
         extra = {"categorias_loja": cats[:300], "atributos_loja": attrs or None}
+        if forma_attr:
+            extra["forma"] = forma_attr
+        # Gold/Aurum: "SPA ISLA COM HIDROMASSAGEM SIZE 8 PESSOAS" só no nome da imagem do produto
+        img_txt = " | ".join(str(im.get("alt") or "") + " " + str(im.get("name") or "") for im in p.get("images") or [])
+        lug_img = extrai_lugares(img_txt, False) if re.search(r"pessoa|lugar", norm(img_txt)) else None
+        if lug_img:
+            extra["lugares_imagem"] = lug_img
         if conf_sel:
             extra.update(configuracao=conf_sel[0], configuracao_origem=conf_sel[1], configuracoes_na_descricao=[k for k, _ in blocos_conf])
 
@@ -1952,14 +2056,140 @@ def ad_shopify_products_json(c):
 
 
 # ---- 5) Tray web_api ----
-def _tray_pag(details):
+def _tray_pag(details, preco=None):
+    """Pix e parcelas do payment_option_details da web_api. O campo 'tax' vem 0 mesmo quando a loja cobra juros
+    (Aquaplas: 'Cartão - Vindi', plots 10, value 666,50, tax 0,00 para um produto de R$ 5.990: 10 x 666,50 = 6.665,
+    e a página diz 'com juros'). Só vale como sem juros quando parcelas x valor <= preço (+1%)."""
     pix, parc = None, None
     for d in details or []:
         if d.get("type") == "pix" and str(d.get("plots")) == "1":
             pix = fnum(d.get("value"))
         if d.get("type") == "credit_card" and fnum(d.get("tax")) == 0:
-            parc = max(parc or 0, int(d.get("plots") or 0)) or None
-    return pix, parc
+            n, v = int(d.get("plots") or 0), fnum(d.get("value"))
+            if preco and v and n > 1 and n * v > preco * 1.01 + 0.05:
+                continue  # parcela com juros embutidos
+            parc = max(parc or 0, n) or None
+    return pix, (parc if parc and parc > 1 else None)
+
+
+def _tray_parcelas_pagamento(h):
+    """Maior nº de parcelas sem juros da aba 'Formas de Pagamento' da Tray (/mvc/store/product/payment_options):
+    cada forma tem as colunas 'à vista', '2 X' ... '12 X' e um valor por coluna com 'sem Tarifa' ou 'com tarifa
+    incluso' / 'com tarifa de 2.79 % a.m.'. Devolve (n, lida): n = maior N > 1 sem tarifa/juros (None se não há)."""
+    t = norm(html_txt(h or ""))
+    if not re.search(r"\d{1,2}\s*x\b", t):
+        return None, False
+    melhor = None
+    for bloco in re.split(r"parcela minima de r\$\s*[\d.,]+", t):
+        # "vista" sozinho: com a página lida em outra codificação o "à" vira lixo e o "a vista" some; perder uma
+        # coluna desalinha tudo (a coleta de 31/10 gravou 4x "sem juros" na Aquaplas assim)
+        cols = re.findall(r"\bvista\b|\b(\d{1,2})\s*x\b", bloco)
+        sts = re.findall(r"r\$\s*[\d.,]+\s*(sem tarifa|sem juros|com tarifa|com juros)", bloco)
+        if len(cols) != len(sts):
+            continue  # colunas e valores não batem: não adivinha
+        for col, st in zip(cols, sts):
+            if col and int(col) > 1 and st.startswith("sem"):
+                melhor = max(melhor or 0, int(col))
+    return melhor, True
+
+
+def _tray_parcelas_loja(c, base, h, id_var=None):
+    """Lê a aba de pagamento da Tray do produto (data-url / data-tab-url do #formasPagto da página). (n, lida)."""
+    m = re.search(r'data-(?:tab-)?url="(/mvc/store/product/payment_options\?[^"]+)"', h or "")
+    if not m:
+        return None, False
+    u = urljoin(base + "/", html.unescape(m.group(1)).replace("%s", str(id_var or "")))
+    try:
+        return _tray_parcelas_pagamento(c.f.texto(u))
+    except (requests.RequestException, Bloqueado):
+        return None, False
+
+
+def _itens_serie_tray(h):
+    """Tabela 'Itens de Série' da Aquaplas (aba Especificações Técnicas): colunas = versões (Basic, Standard,
+    Premium; Imersão, Standard). [(versao, ...)], [(item, [valor por versão])]: True = check, texto = valor da
+    célula ('3', '1/2 CV'), None = célula vazia (a versão não tem)."""
+    mt = re.search(r'(?is)<table[^>]*class="[^"]*tabela-comparativa[^"]*"[^>]*>(.*?)</table>', h or "")
+    if not mt:
+        return None
+    trs = re.findall(r"(?is)<tr[^>]*>(.*?)</tr>", mt.group(1))
+    if len(trs) < 2:
+        return None
+
+    def cel(x):
+        if re.search(r"(?i)icon-check|check", x) and not html_txt(x).strip():
+            return True
+        v = re.sub(r"\s+", " ", html_txt(x)).strip()
+        return v or None
+    cab = [re.sub(r"\s+", " ", html_txt(x)).strip() for x in re.findall(r"(?is)<t[hd][^>]*>(.*?)</t[hd]>", trs[0])]
+    versoes = cab[1:]
+    linhas = []
+    for tr in trs[1:]:
+        cs = re.findall(r"(?is)<t[hd][^>]*>(.*?)</t[hd]>", tr)
+        if len(cs) != len(cab):
+            continue
+        linhas.append((re.sub(r"\s+", " ", html_txt(cs[0])).strip(), [cel(x) for x in cs[1:]]))
+    return (versoes, linhas) if versoes and linhas else None
+
+
+def _attrs_itens_serie(tab, variante):
+    """Atributos da versão escolhida pela tabela de itens de série (vence a descrição, que é a mesma das versões).
+    Versão = coluna cujo nome é um valor da variante ('Tipo: Basic'). Sem coluna que bata, só as linhas iguais em
+    todas as versões. Aquecedor/cromo fora da coluna da versão = não incluso (a tabela é a lista de série)."""
+    versoes, linhas = tab
+    vals = {norm(x.split(":", 1)[-1]) for x in re.split(r"\s*\|\s*", variante or "") if x.strip()}
+    idx = next((k for k, v in enumerate(versoes) if norm(v) in vals), None)
+    if idx is None and len(versoes) == 1:
+        idx = 0
+    out, extra, txt = {}, {}, []
+    tem = {"aquecedor_incluso": None, "cromo_incluso": None}
+    mini_vazio = False
+    for item, cels in linhas:
+        if idx is not None:
+            v = cels[idx]
+        elif all(x == cels[0] for x in cels):
+            v = cels[0]
+        else:
+            v = "?"  # difere entre versões e a versão não é conhecida
+        ni = norm(item)
+        for chave, rx in (("aquecedor_incluso", r"aquec"), ("cromo_incluso", r"cromo|\bled")):
+            if re.search(rx, ni):
+                if v == "?":
+                    tem[chave] = "?"
+                elif tem[chave] is not True:
+                    tem[chave] = bool(v)
+                if chave == "cromo_incluso" and v not in (None, "?"):
+                    cp = re.search(r"(\d{1,2})\s*pontos?", ni + " " + (v if isinstance(v, str) else ""))
+                    if cp:
+                        extra["cromo_pontos"] = int(cp.group(1))
+        if v in (None, "?"):
+            if v is None and re.search(r"(?:mini|micro)[\s-]?jat", ni):
+                mini_vazio = True
+            continue
+        if v is True:
+            txt.append(item)
+        elif re.fullmatch(r"\d{1,2}", v):
+            txt.append("%s %s" % (v, item))
+        else:
+            txt.append("%s %s" % (item, v))
+    t = "\n".join(txt)
+    j, mj = extrai_jatos(t)
+    if j is not None:
+        out["jatos"] = j
+    if mj is not None:
+        out["mini_jatos"] = mj
+    elif mini_vazio:
+        out["mini_jatos"] = 0
+    mo, cv = extrai_motores(t), extrai_cv(t)
+    if mo:
+        out["motores"] = mo
+    if cv:
+        out["potencia_cv"] = cv
+    for k, v in tem.items():
+        out[k] = False if v is None else (None if v == "?" else v)
+    extra["itens_serie"] = ("coluna %s da tabela Itens de Série" % versoes[idx]) if idx is not None else \
+        "tabela Itens de Série (só itens iguais em todas as versões)"
+    return out, extra
 
 
 def ad_tray_web_api(c):
@@ -2031,7 +2261,9 @@ def ad_tray_web_api(c):
             base_a["cromo_incluso"] = False
         extra = {"marca": p.get("brand") or None, "modelo": p.get("model") or None, "propriedades": props_t or None,
                  "opcionais": opcionais or None, "prazo": p.get("availability") or None}
-        pix, parc = _tray_pag(p.get("payment_option_details"))
+        preco = fnum(p.get("price"))
+        promo = fnum(p.get("promotional_price"))
+        pix, parc = _tray_pag(p.get("payment_option_details"), promo if promo and preco and promo < preco else preco)
         variantes = []
         if str(p.get("has_variation")) == "1" and p.get("Variant"):
             try:
@@ -2039,29 +2271,53 @@ def ad_tray_web_api(c):
                 variantes = [x["Variant"] for x in dv.get("Variants") or []]
             except (requests.HTTPError, ValueError):
                 variantes = []
-        preco = fnum(p.get("price"))
-        promo = fnum(p.get("promotional_price"))
+        # Aquaplas: a página do produto traz a tabela "Itens de Série" por versão (Basic/Standard/Premium) e a aba
+        # "Formas de Pagamento" (parcelas sem juros de verdade). A descrição da web_api é a mesma das três versões.
+        tab, parc_pag = None, (None, False)
+        if (c.p.get("itens_serie_html") or c.p.get("pagamento_tray")) and i < lim_det and url:
+            try:
+                hp = c.f.texto(url)
+            except (requests.RequestException, Bloqueado):
+                hp = ""
+            if c.p.get("itens_serie_html"):
+                tab = _itens_serie_tray(hp)
+            if c.p.get("pagamento_tray"):
+                parc_pag = _tray_parcelas_loja(c, base, hp, (variantes[0].get("id") if variantes else ""))
+        if parc_pag[1]:
+            parc = parc_pag[0]
+            extra["parcelas_origem"] = "aba Formas de Pagamento da página (maior N sem tarifa)"
+
+        def _base_v(vt):
+            if not tab:
+                return base_a, {}
+            a_t, ex_t = _attrs_itens_serie(tab, vt)
+            return dict(base_a, **{k: v for k, v in a_t.items() if v is not None}), ex_t
         if variantes:
             for v in variantes:
                 vp, vpr = fnum(v.get("price")), fnum(v.get("promotional_price"))
                 skus = v.get("Sku") or []
                 vt = " | ".join("%s: %s" % (s.get("type"), s.get("value")) for s in skus if isinstance(s, dict))
-                vpix, vparc = _tray_pag(v.get("payment_option_details"))
                 por = vpr if vpr and vp and vpr < vp else vp
-                c.add(p["id"], nome, url, por, vp if por != vp else None, vpix or None, vparc or parc,
+                vpix, vparc = _tray_pag(v.get("payment_option_details"), por)
+                if parc_pag[1]:
+                    vparc = parc_pag[0]
+                b_v, ex_v = _base_v(vt)
+                c.add(p["id"], nome, url, por, vp if por != vp else None, vpix or None, vparc if parc_pag[1] else (vparc or parc),
                       str(v.get("available")) == "1", sku=v.get("reference") or v.get("id"), variante=vt, texto=texto,
-                      attrs_base=base_a, extra=dict(extra, variante_id=v.get("id")), cat_extra=p["_cat_url"])
+                      attrs_base=b_v, extra=dict(extra, variante_id=v.get("id"), **ex_v), cat_extra=p["_cat_url"])
         elif tamanhos:
             por = promo if promo and preco and promo < preco else preco
             for tm in tamanhos:
                 vt = re.sub(r"\s+", " ", str(tm["item"])).strip()
+                b_v, ex_v = _base_v(vt)
                 c.add(p["id"], nome, url, round(por + tm["preco"], 2) if por else None, None, None, parc,
-                      str(p.get("available")) == "1", sku=p.get("id"), variante=vt, texto=texto, attrs_base=base_a,
-                      extra=dict(extra, acrescimo_opcao=tm["preco"], grupo_variante=tm["grupo"]), cat_extra=p["_cat_url"])
+                      str(p.get("available")) == "1", sku=p.get("id"), variante=vt, texto=texto, attrs_base=b_v,
+                      extra=dict(extra, acrescimo_opcao=tm["preco"], grupo_variante=tm["grupo"], **ex_v), cat_extra=p["_cat_url"])
         else:
             por = promo if promo and preco and promo < preco else preco
+            b_v, ex_v = _base_v("")
             c.add(p["id"], nome, url, por, preco if por != preco else None, pix, parc, str(p.get("available")) == "1",
-                  sku=p.get("id"), variante="", texto=texto, attrs_base=base_a, extra=extra, cat_extra=p["_cat_url"])
+                  sku=p.get("id"), variante="", texto=texto, attrs_base=b_v, extra=dict(extra, **ex_v), cat_extra=p["_cat_url"])
     return len(sel)
 
 
@@ -2124,6 +2380,19 @@ def ad_tray_html_datalayer(c):
         desc = corta_relacionados(desc)[:6000]
         mo = re.search(r"OPCIONAIS:\s*([^\n]*(?:\n[^\n]*)?)", desc)
         extra = {"modelo": dl.get("model"), "categoria_loja": dl.get("category"), "opcionais_texto": mo.group(1).strip()[:400] if mo else None}
+        for trecho, fm in (c.p.get("forma_por_url") or {}).items():
+            if trecho in u:
+                extra["forma"] = fm
+                extra["forma_origem"] = "linha da loja na URL"
+        if c.p.get("forma_por_url") and not extra.get("forma"):
+            # Linha Dupla/Especial misturam formas (Itatiaia 1,60 x 1,60 é de canto pela foto): forma não declarada
+            extra["forma_nao_declarada"] = True
+        parc_pag = (None, False)
+        if c.p.get("pagamento_tray"):
+            pu = urlparse(u)
+            parc_pag = _tray_parcelas_loja(c, "%s://%s" % (pu.scheme, pu.netloc), h, "")
+            if parc_pag[1]:
+                extra["parcelas_origem"] = "aba Formas de Pagamento da página (maior N sem tarifa)"
         lst = dl.get("listSku") or []
         # descrição com um bloco por kit ("CONF. KIT - 9 · 6 JATOS ... · 2 MOTOBOMBAS DE 1CV"): cada variante "Kit 09"
         # usa só o seu bloco; kit sem bloco ou com bloco repetido fica sem jatos/motores (não soma a página inteira)
@@ -2154,7 +2423,7 @@ def ad_tray_html_datalayer(c):
                         ex_v["kit_mapeamento"] = "sem bloco na descricao (configuracao desconhecida)" if not bl else "bloco repetido na descricao (configuracao desconhecida)"
                 c.add(dl.get("idProduct"), nome, u, fnum(v.get("sellPrice")) or fnum(v.get("price")),
                       fnum(v.get("price")) if fnum(v.get("sellPrice")) and fnum(v.get("price")) and fnum(v.get("price")) > fnum(v.get("sellPrice")) else None,
-                      None, None, v.get("availability") == "YES", sku=v.get("idSku"), variante=v.get("nameSku") or "",
+                      None, parc_pag[0], v.get("availability") == "YES", sku=v.get("idSku"), variante=v.get("nameSku") or "",
                       texto=texto_v, extra=ex_v, attrs_base=base_v)
         else:
             por1 = fnum(dl.get("priceSell")) or fnum(dl.get("price"))
@@ -2167,7 +2436,7 @@ def ad_tray_html_datalayer(c):
                 if av and 0.8 * por1 <= av < por1:
                     extra = dict(extra, preco_a_vista=av)
             c.add(dl.get("idProduct"), nome, u, por1, fnum(dl.get("price")), px1,
-                  _parcelas_html(bl6),
+                  parc_pag[0] if parc_pag[1] else _parcelas_html(bl6),
                   (dl.get("availability") == "YES") if dl.get("availability") in ("YES", "NO") else None, sku=dl.get("idProduct"),
                   variante="", texto=nome + "\n" + desc, extra=extra)
     return n
@@ -2507,19 +2776,24 @@ def ad_sitemap_jsonld(c):
                 variacoes = []
         sku = prod.get("sku") or prod.get("productID")
         extra = {"marca": (prod.get("brand") or {}).get("name") if isinstance(prod.get("brand"), dict) else prod.get("brand")}
+        # Product.size do JSON-LD (Aquasol: "2,00 x 2,00 x 0,67", a variante Tamanho da página): é a medida do produto
+        base_ld = {}
+        md_ld = list(dict.fromkeys(extrai_medidas(str(prod.get("size") or ""))))
+        if len(md_ld) == 1:
+            base_ld["comprimento_m"], base_ld["largura_m"], base_ld["profundidade_m"] = md_ld[0]
         if isinstance(variacoes, list) and variacoes:
             for v in variacoes:
                 vt = " | ".join("%s: %s" % (k.replace("attribute_", "").replace("pa_", ""), val) for k, val in (v.get("attributes") or {}).items() if val)
                 dp, dr = fnum(v.get("display_price")), fnum(v.get("display_regular_price"))
                 c.add(sku or u, nome, u, dp, dr if dr and dp and dr > dp else None, None, None, v.get("is_in_stock"),
-                      sku=v.get("sku") or v.get("variation_id"), variante=vt, texto=texto, extra=dict(extra, variacao_id=v.get("variation_id")))
+                      sku=v.get("sku") or v.get("variation_id"), variante=vt, texto=texto, extra=dict(extra, variacao_id=v.get("variation_id")), attrs_base=base_ld)
             continue
         ofs = [o for o in offers if isinstance(o, dict)]
         if len(ofs) > 1 and any(o.get("name") or o.get("sku") for o in ofs):
             for o in ofs:
                 c.add(sku or u, nome, o.get("url") or u, brl(o.get("price") or o.get("lowPrice")), None, None, None,
                       "InStock" in str(o.get("availability")), sku=o.get("sku") or sku, variante=o.get("name") or o.get("sku") or "",
-                      texto=texto, extra=extra)
+                      texto=texto, extra=extra, attrs_base=base_ld)
             continue
         o = ofs[0] if ofs else {}
         preco = brl(o.get("price") or o.get("lowPrice"))
@@ -2549,7 +2823,7 @@ def ad_sitemap_jsonld(c):
             elif cartao is None:
                 c.f.notas.append("preço de cartão não achado em %s" % urlparse(u).path[:60])
         c.add(sku or u, nome, u, preco, de, pix, parc, ("InStock" in str(o.get("availability"))) if o else None, sku=sku,
-              variante="", texto=texto, extra=extra)
+              variante="", texto=texto, extra=extra, attrs_base=base_ld)
     return n
 
 
