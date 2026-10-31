@@ -598,13 +598,31 @@ _RX_OPC_FIM = re.compile(r"(?im)^\s*(?:acompanha|itens de s[eé]rie|inclusos?|co
                          r"caracter[ií]sticas|ficha t[eé]cnica|descri[cç][aã]o|garantia|medidas|dimens)")
 
 
+# Cabeçalho de lista de opcionais numa linha própria, sem ":" (reconferência r4): Fábrica das Banheiras "OPCIONAIS CASO
+# QUEIRA AGREGAR AO SPA", "PRODUTOS ADICIONAIS A PARTE:", "ACESSÓRIOS ADICIONAIS PARA SPA". A linha não tem número nem
+# preço (uma linha "Adicional de R$ 400 para 4 pontos" é item, não cabeçalho).
+_RX_OPC_CAB = re.compile(r"(?im)^[ \t]*(?:(?:produtos|acess[oó]rios|itens|equipamentos|op[cç][oõ]es)[ \t]+)?"
+                         r"(?:opcion(?:al|ais)|adicion(?:al|ais))\b[^\n:\d$]{0,50}:?[ \t]*$")
+# "Os demais acessórios que não acompanham a Banheira ... podem ser encontrados em nossa loja separadamente" seguido da
+# lista com "–", sem ":" (Acqualine Luminárias, reconferência r4 preços #21)
+_RX_OPC_NAO_ACOMP = re.compile(r"(?im)^[^\n]{0,80}\bn[aã]o\s+acompanha\w*\b[^\n]{0,160}?\bseparadamente\b[ \t]*:?[ \t]*(?=\n|[–-]|$)")
+
+
+def _opc_rotulos(t):
+    """Início e fim do rótulo de cada lista de opcionais, em ordem."""
+    ms = list(_RX_OPC_ROTULO.finditer(t)) + list(_RX_OPC_CAB.finditer(t)) + list(_RX_OPC_NAO_ACOMP.finditer(t))
+    return sorted(ms, key=lambda m: m.start())
+
+
 def sem_opcionais(texto):
     """Tira do texto a lista de opcionais ('Opcional: 6 Jatos Plus, 2 Jatos Grandes...', 'ITEM OPCIONAL:', bloco
     'Opcionais'), para jatos/motores/potência não somarem o que não vem com o produto. A lista vai até a próxima seção
-    (Acompanha, Configuração, Especificações...) ou o fim. 'Inox opcional c/ custo' no meio da frase não é rótulo."""
+    (Acompanha, Configuração, Especificações...) ou o fim. 'Inox opcional c/ custo' no meio da frase não é rótulo.
+    Também valem o cabeçalho em linha própria sem ':' ('OPCIONAIS CASO QUEIRA AGREGAR AO SPA') e a frase
+    'não acompanham ... separadamente' seguida da lista."""
     t = str(texto or "")
     out, pos = [], 0
-    for m in _RX_OPC_ROTULO.finditer(t):
+    for m in _opc_rotulos(t):
         if m.start() < pos:
             continue
         out.append(t[pos:m.start()])
@@ -617,6 +635,10 @@ def sem_opcionais(texto):
 def bloco_produto_html(h, nome=None, max_chars=8000):
     """Texto do produto a partir do HTML: remove cabeçalho/menu/rodapé, começa no nome e para nos relacionados."""
     h = re.sub(r"(?is)<(header|nav|footer|aside)[^>]*>.*?</\1>", " ", h or "")
+    # navegação "produto anterior / próximo produto" do tema (Woodmart "woodmart-products-nav", "wd-products-nav",
+    # "product-navigation"): o nome do produto vizinho ("Acionador Digital com Sensor de Nível") virava item incluso
+    h = re.sub(r'(?is)<div[^>]*class="[^"]*\b(?:woodmart-products-nav|wd-products-nav|product-navigation|products-nav)\b'
+               r'.*?(?=<h1\b)', " ", h)
     t = html_txt(h)
     if nome:
         i = norm(t).find(norm(nome)[:40])
@@ -707,6 +729,40 @@ def _pix_percentual_html(h, preco_ref=None):
     return None
 
 
+def _cartao_da_pagina(h):
+    """Preços de cartão publicados no bloco do produto: 'Ou R$ Y em até 12x', 'R$ Y em 10x' e '12x de R$ Z sem juros'
+    (Y = N x Z). Lista, na ordem da página."""
+    t = _junta_valor(html_txt(h) if "<" in (h or "") else (h or ""))
+    t = re.sub(r"\s+", " ", t)
+    out = []
+    for m in re.finditer(_RS + r"\s*(?:em\s+at[eé]|em|at[eé]|parcelado\s+em)\s*(\d{1,2})\s*x", t, re.I):
+        out.append(brl(m.group(1)))
+    for m in re.finditer(r"(\d{1,2})\s*x\s*(?:de\s*)?" + _RS + r"\s*sem juros", t, re.I):
+        v = brl(m.group(2))
+        if v:
+            out.append(round(int(m.group(1)) * v, 2))
+    return [x for x in out if x]
+
+
+def _por_ja_e_pix(h, preco, pix=None, pct=None, cartao_ld=None):
+    """Regra geral (reconferência r3, Mérito): o "Por" da página JÁ é o preço do Pix quando
+      (a) a página declara "R$ X no Pix" e X é igual ao "Por"; ou
+      (b) a página declara "N% de desconto no Pix" e mostra um preço de cartão Y com Y x (1 - N%) = "Por"
+          ('De 18.034,94 Por 16.231,45 · 10% de desconto no Pix ou boleto · Ou R$ 18.034,94 em até 12x').
+    Devolve o preço de cartão Y (vira preco_por; o "Por" vira preco_pix) ou None. Não aplica o desconto de novo."""
+    if not preco:
+        return None
+    # ordem de confiança: maxPrice do JSON-LD e "Ou R$ Y em até Nx" (total publicado) antes de N x parcela
+    # (12 x 1.502,91 = 18.034,92 arredonda 2 centavos abaixo do total 18.034,94 da página)
+    cands = ([cartao_ld] if cartao_ld else []) + _cartao_da_pagina(h)
+    for y in dict.fromkeys(round(x, 2) for x in cands if x and preco + 0.01 < x <= preco * 1.35):
+        if pix is not None and abs(pix - preco) <= 0.02:
+            return y
+        if pct and abs(y * (1 - pct / 100.0) - preco) <= max(0.05, 0.0005 * y):
+            return y
+    return None
+
+
 def _pix_da_loja(c, url, preco_ref=None):
     """Lê uma vez por fonte (na 1ª página de produto) o % do Pix e as parcelas sem juros. Cache no coletor."""
     if getattr(c, "_pix_loja", None) is not None:
@@ -769,23 +825,30 @@ def extrai_medidas(texto):
         res.append((d, d, p))
     t = _RX_DIAM.sub(" ", t)  # o par "Ø x profundidade" não é comprimento x largura
     for m in re.finditer(r"(\d{1,3}(?:[.,]\d{1,3})?)\s*(m|cm)?\s*x\s*(\d{1,3}(?:[.,]\d{1,3})?)\s*(m|cm)?"
-                         r"(?:\s*x\s*(\d{1,3}(?:[.,]\d{1,3})?)\s*(m|cm|mm)?)?", t):
+                         r"(?:\s*x\s*(\d{1,3}(?:[.,]\d{1,3})?)\s*(mm|cm|m)?)?", t):
         vals = []
-        for g in (m.group(1), m.group(3), m.group(5)):
+        brutos = [float(g.replace(",", ".")) for g in (m.group(1), m.group(3), m.group(5)) if g is not None]
+        # milímetros só quando o conjunto tem número de 4 dígitos ("1700 x 800 x 450"); sem isso, 3 dígitos são
+        # centímetros (Faiberplas Spa Caribe "403 x 207 x 85" = 4,03 m, não 0,403; reconferência r4 preços #5)
+        em_mm = any(v >= 1000 for v in brutos)
+        for i, g in enumerate((m.group(1), m.group(3), m.group(5))):
             if g is None:
                 vals.append(None)
                 continue
             v = float(g.replace(",", "."))
-            if v >= 400:
-                v = v / 1000.0
-            elif v > 4.5:
-                v = v / 100.0
+            if v > 4.5:
+                v = v / (1000.0 if em_mm or (i == 2 and m.group(6) == "mm") else 100.0)
             vals.append(round(v, 3))
         a, b, c = vals
         if a is None or b is None or a < 0.25 or b < 0.25 or a > 4.5 or b > 4.5:
             continue
         if c is not None and (c < 0.15 or c > 2.0):
             c = None
+        if c is None and m.group(5) is None and min(a, b) <= 0.60 and max(a, b) >= 1.0:
+            # só 2 números e o 2º de 0,60 m ou menos: é comprimento x profundidade ("150 x 40 Cm" da Faiberplas
+            # Ipanema), não largura; a largura fica vazia
+            res.append((max(a, b), None, min(a, b) if min(a, b) >= 0.15 else None))
+            continue
         res.append((max(a, b), min(a, b), c))
     return res
 
@@ -866,7 +929,18 @@ def extrai_jatos(texto):
     """(jatos, mini_jatos). Soma grupos distintos ('4 jatos grandes' + '2 jatos laterais'); o mesmo grupo repetido
     no nome e na descrição conta uma vez (chave = número + primeira palavra descritiva). Aceita 'jatões', '20J' no
     nome e 'Total de Jatos (...): 19' (total declarado vence a soma). Lista de opcionais não entra."""
-    t = norm(sem_opcionais(texto))
+    # linha com preço ("01 - Kit combo de 10 jatos com motobomba 1 CV R$ 1.350,00") é item vendido à parte (Fábrica
+    # das Banheiras, reconferência r4 preços #18)
+    t = norm("\n".join(x for x in sem_opcionais(texto).split("\n") if not re.search(r"R\$\s*\d", x)))
+    # "10 - Mini Jatos", "10 - Jatos Grandes" (Fábrica): o hífen entre a quantidade e o item
+    t = re.sub(r"\b(\d{1,2})\s*-\s+(?=(?:mini|micro|hidro|turbo|super|maxi)?[\s-]?jat)", r"\1 ", t)
+    # total com o detalhamento entre parênteses: "10 jatos de hidromassagem (4 grandes e 6 mini jatos)" (Telhanorte
+    # Nautacril) = 4 jatos + 6 mini, não 10 + 6 (reconferência r3, par 20)
+    for m in re.finditer(r"\b(\d{1,2})\s*" + _JATO + r"[^()\n]{0,40}\(\s*(\d{1,2})\s*(?:jat\w*\s*)?(?:grandes?|normais|"
+                         r"turbo|direcion\w*|maiores)?[^()\d]{0,20}?(?:\be\b|\+|,)\s*(\d{1,2})\s*(?:mini|micro)[\s-]?jat", t):
+        tot, a, b = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if a + b == tot:
+            return a, b
     minis, jatos, totais = [], [], []
     # "micro jatos" (WT Fibras: "08 Micro Jatos terapêuticos" + "04 Jatos Direcionável") são mini jatos
     for m in re.finditer(_NUM + r"\s*(?:\(\w+\)\s*)?(?:mini|micro)[\s-]?" + _JATO + r"(?=([^\n,;.]{0,25}))", t):
@@ -933,6 +1007,10 @@ def extrai_motores(texto):
     achados = []
     for m in re.finditer(_NUM + r"\s*x?\s*(?:\(\w+\)\s*)?(?:moto[\s-]?bombas?|motobombaa|motores|motor)\b", t):
         v = _n(m.group(1))
+        # "(01 motobomba de 1cv a cada 10 jatos)": proporção da linha, não quantidade do produto (Splaz, r3 preços #8;
+        # a mesma régua de extrai_jatos)
+        if re.match(r"[^.;\n()]{0,30}?\b(?:a|para)\s+cada\s+\d", t[m.end():]):
+            continue
         if v and v <= 6:
             achados.append((m.group(0), v))
     tot = _soma_unica(achados)
@@ -944,6 +1022,36 @@ def extrai_motores(texto):
     if re.search(r"\bmotor\b(?:\s+de)?\s+(?:\d+(?:[.,]\d+)?|\d/\d)\s*(?:cv|hp)\b", t) and not re.search(r"\bmotores\b", t):
         return 1
     return None
+
+
+_RX_MOTOR_PROPORCAO = re.compile(r"\b(\d{1,2}|um|uma)\s*(?:moto[\s-]?bo?mbas?|motores|motor)\s*(?:de\s+)?(\d+(?:[.,]\d+)?|\d/\d)?\s*"
+                                 r"(?:cv|hp)?\s*(?:a|para)\s+cada\s+(\d{1,2})\s*(?:hidro)?jat")
+
+
+_RX_MOTOR_PROPORCAO_INV = re.compile(r"(?:a|para)\s+cada\s+(\d{1,2})\s*(?:hidro)?jat\w*\s*,?\s*(?:acompanha|vem|tem)\s+(\d{1,2}|um|uma)\s*"
+                                     r"(?:moto[\s-]?bo?mbas?|motores|motor)\s*(?:de\s+)?(\d+(?:[.,]\d+)?|\d/\d)?")
+
+
+def motores_por_proporcao(texto, jatos):
+    """'(01 motobomba de 1cv a cada 10 jatos)' (Splaz): nº de motores da VARIANTE = N x (jatos // K), mínimo N; a
+    potência por motor é a da frase. 12 jatos = 1 motor (r3 preços #8); 42 = 4; 52 = 5 (reconferência r4 preços
+    #9 e #10: as variantes de 20 a 52 jatos ficavam com 1 motor). Devolve (motores, cv por motor) ou None."""
+    if not jatos:
+        return None
+    t = norm(sem_opcionais(texto))
+    m = _RX_MOTOR_PROPORCAO.search(t)
+    if m:
+        n, k, cvg = _n(m.group(1)) or 1, int(m.group(3)), m.group(2)
+    else:
+        # ordem inversa: "(a cada 10 jatos, acompanha 1 motobomba de 1cv)"
+        m = _RX_MOTOR_PROPORCAO_INV.search(t)
+        if not m:
+            return None
+        n, k, cvg = _n(m.group(2)) or 1, int(m.group(1)), m.group(3)
+    if not (1 <= k <= 30):
+        return None
+    cv = _cv_val(cvg) if cvg else None
+    return n * max(1, int(jatos) // k), (cv if cv and 0.1 <= cv <= 10 else None)
 
 
 _CV_NUM = r"(?:\d+(?:[.,]\d+)?|\d/\d)"
@@ -985,7 +1093,7 @@ def so_opcionais(texto):
     """O que sem_opcionais() tira: só as listas de opcionais."""
     t = str(texto or "")
     partes, pos = [], 0
-    for m in _RX_OPC_ROTULO.finditer(t):
+    for m in _opc_rotulos(t):
         if m.start() < pos:
             continue
         f = _RX_OPC_FIM.search(t, m.end())
@@ -1032,8 +1140,16 @@ def _flag_item(nome, texto, item_rx):
     if re.search(r"(?:^|[^\d.,/%])\d{1,2}\s+(?:un\.?\s+)?" + kit + rx + r"\b", t):
         return True
     secao = ""
+    # cabeçalho de lista do que NÃO vem com o produto ("Os demais acessórios que não acompanham a Banheira de Hidro
+    # completa podem ser encontrados em nossa loja separadamente:" na Acqualine): as linhas abaixo não são inclusos
+    rx_sec_neg = r"nao acompanha|separadamente|vendidos? a parte|opciona(?:l|is)|adicionais|nao inclu"
     for linha in base.split("\n"):
         ln = norm(linha)
+        if re.match(r"^.{3,200}:\s*$", ln):  # cabeçalho longo (até 200 caracteres) terminado em ":"
+            secao = ln
+            continue
+        if re.match(r"^(?:[-*>\u2022\u2013]\s*)?" + kit + rx + r"\b", ln) and re.search(rx_sec_neg, secao):
+            return False
         if re.match(r"^(?:[-*>\u2022]\s*)?(?:\d{1,2}\s+(?:un\.?\s+)?)?" + kit + rx + r"\b", ln) and len(ln.split()) >= 2:
             return True
         # item sozinho na linha, dentro da lista "Itens inclusos:" (Aquasol Jacuzzi: "...Sistema de Drenagem: POP-UP\nAquecedor")
@@ -1050,6 +1166,33 @@ def _flag_item(nome, texto, item_rx):
     return None
 
 
+# Itens que a BBB vende como opcional pago (lista de opcionais do Magento) além de aquecedor e cromo. Quando o concorrente
+# inclui de série, o equivalencias.py desconta o preço do opcional da BBB (reconferência r3, pares 8 e 11: Fábrica Spa
+# Baby e Master Top incluem "aparelho de ozônio" e "kit Air Blower com 10 bicos"). Chave = a mesma que o
+# equivalencias.py dá ao opcional da BBB. Filtro de cartucho não é o "kit filtragem completo (areia)" da BBB.
+ITENS_EXTRA = (
+    ("ozonio", r"(?:aparelho|gerador|sistema)?\s*(?:de\s+)?(?:ozonio|ozonizador|ozonizacao|ozone)"),
+    ("airblower", r"air[\s-]?blower|blower|soprador(?:\s+de\s+ar)?"),
+    ("filtragem", r"(?:kit\s+(?:de\s+)?)?filtr(?:o|agem|acao)[^.\n]{0,25}\bareia\b"),
+    ("acionador", r"acionador\s+(?:digital|eletronico)"),
+)
+
+
+def itens_extra(nome, texto):
+    """{item: True/False} dos ITENS_EXTRA que a página afirma (incluso de série ou opcional). Item não citado fica de fora.
+    Filtro no nome ('Completa Com Aquecedor, Luzes, Filtro e Ozônio') conta como kit filtragem quando o texto do
+    produto (fora da lista de opcionais) diz que a filtração é de areia (reconferência r4, Fábrica Copacabana)."""
+    out = {}
+    for k, rx in ITENS_EXTRA:
+        f = _flag_item(nome, texto, rx)
+        if f is not None:
+            out[k] = f
+    if out.get("filtragem") is None and re.search(r"(?:\bcom|\bc/|\+)\s[^|]{0,60}?\bfiltro\b", norm(nome)) \
+            and re.search(r"filtr\w*[^.\n]{0,25}\bareia\b", norm(sem_opcionais(texto))):
+        out["filtragem"] = True
+    return out
+
+
 def extrai_cromo_pontos(texto):
     """Pontos de cromoterapia que vêm com o produto ('3 pontos de cromoterapia', 'Kit Cromoterapia com 2 pontos em
     led', '1 ponto de LED', 'cromoterapia com 4 spots'). Lista de opcionais não entra; 'Cromoterapia 2 ou 4 spots'
@@ -1059,6 +1202,9 @@ def extrai_cromo_pontos(texto):
     for m in re.finditer(r"\b(\d{1,2})\s+(?:pontos?|spots?|leds?)\s+(?:de\s+|em\s+)?(?:cromo\w*|led\w*|luz|ilumina\w*)", t):
         vals.append(int(m.group(1)))
     for m in re.finditer(r"cromo\w*[^.\n]{0,25}?\bcom\s+(\d{1,2})\s+(?:pontos?|spots?|leds?)\b(?!\s*ou)", t):
+        vals.append(int(m.group(1)))
+    # "01 Cromoterapia 2 pontos + Controlador" (Fábrica), "Cromoterapia 2 spots de led" (Splaz): reconferência r4
+    for m in re.finditer(r"cromo\w*\s+(\d{1,2})\s+(?:pontos?|spots?|leds?)\b(?!\s*ou)", t):
         vals.append(int(m.group(1)))
     vals = [v for v in vals if 1 <= v <= 20]
     return vals[0] if vals and len(set(vals)) == 1 else (max(vals) if vals else None)
@@ -1086,11 +1232,33 @@ def extrai_forma(texto, so_rotulo=False):
     m = re.search(r"\bforma(?:to)?\s*:\s*([a-z ]{3,30})", t)
     alvo = m.group(1) if m else ("" if so_rotulo else t)
     for rx_, rot in ((r"vitorian", "Vitoriana"), (r"freestanding|free standing|de apoio\b|\bilha\b", "Freestanding"),
+                     (r"octogon|oitavad", "Octogonal"), (r"sextavad|hexagon", "Sextavada"),
                      (r"quadrad", "Quadrada"), (r"redond|circular", "Redonda"), (r"\bde canto\b|\bcanto\b", "Canto"),
                      (r"\boval", "Oval"), (r"retangular", "Retangular")):
         if re.search(rx_, alvo):
             return rot
     return None
+
+
+def forma_evidencia(texto):
+    """Forma por evidência indireta (categoria própria do produto, tag, nome/alt da imagem): só quando o texto cita
+    UMA forma ('product_cat-banheiras-de-canto-basicas', imagem 'spa-octogonal-4-lugares.jpg'). Duas formas
+    diferentes (carrossel, categoria 'redondas e de canto') não decidem."""
+    t = norm(re.sub(r"[-_/]+", " ", str(texto or "")))
+    achadas = set()
+    for rx_, rot in ((r"octogon|oitavad", "Octogonal"), (r"sextavad|hexagon", "Sextavada"), (r"quadrad", "Quadrada"),
+                     (r"redond|circular", "Redonda"), (r"\bcanto\b", "Canto"), (r"\boval", "Oval"), (r"retangular", "Retangular")):
+        if re.search(rx_, t):
+            achadas.add(rot)
+    return achadas.pop() if len(achadas) == 1 else None
+
+
+def _classes_produto_html(h):
+    """Categorias e tags do PRÓPRIO produto numa página WooCommerce (classes product_cat-*/product_tag-* do
+    <div id="product-N">), não as dos carrosséis."""
+    m = (re.search(r'<div[^>]*\bid="product-\d+"[^>]*\bclass="([^"]*)"', h or "")
+         or re.search(r'<div[^>]*\bclass="([^"]*)"[^>]*\bid="product-\d+"', h or ""))
+    return " ".join(re.findall(r"\bproduct_(?:cat|tag)-([\w-]+)", m.group(1))) if m else ""
 
 
 def extrai_travesseiros(texto):
@@ -1163,6 +1331,42 @@ def texto_da_versao(texto, variante):
     return _RX_POR_VERSAO.sub(troca, texto)
 
 
+_RX_INCLUSOS = re.compile(r"(?:itens\s+inclusos|acessorios|acompanha|conteudo\s+incluso|inclui)\s*:?\s*([^\n]{3,400})")
+
+
+def jatos_declarados(nome, texto, jt, mt):
+    """Quantidade de jatos que o título ou a lista "Itens Inclusos" declara vence a soma da descrição genérica, quando
+    a soma só repete o mesmo número em frases diferentes (Telhanorte Lebloncril: "4 Jatos" no título, nos itens
+    inclusos, em "equipada com 4 jatos" e em "os 4 jatos de hidromassagem" somava 12; reconferência r3, par 24).
+    Só troca quando a soma é múltiplo do declarado e o declarado aparece no texto; o total com detalhamento
+    ("10 jatos (4 grandes e 6 mini)") continua valendo."""
+    if not jt:
+        return jt, mt
+    decl = []
+    jn, mn = extrai_jatos(nome)
+    # total declarado no nome vence a soma quando a soma passa dele (Fábrica "Spa Quadrado 30 jatos": o título, o
+    # resumo "30 jatos em aço inoxidável" e a lista "20 Mini Jatos; 10 Jatos Turbo" somavam 70; reconferência r4
+    # preços #18). Se a lista detalhada (sem as menções do total) fecha com o total, vale a lista (10 + 20 mini).
+    if jn and not mn and jt > jn:
+        resto = re.sub(r"(?i)\b0?%d\s*(?:hidro)?jat(?:o|õe|oe)s?\b" % jn, " ", str(texto or ""))
+        jl, ml = extrai_jatos(resto)
+        if jl and (jl + (ml or 0)) == jn:
+            return jl, ml
+        return jn, None
+    if jn:
+        decl.append((jn, mn))
+    for m in _RX_INCLUSOS.finditer(norm(sem_opcionais(texto))):
+        ji, mi = extrai_jatos(m.group(1))
+        if ji:
+            decl.append((ji, mi))
+    for jd, md in decl:
+        if jd + (md or 0) == jt + (mt or 0) or jd == jt:
+            return jt, mt  # o texto já bate com o declarado
+        if jt > jd and jt % jd == 0 and re.search(r"\b0?%d\s*%s" % (jd, _JATO), norm(sem_opcionais(texto))):
+            return jd, (md if md is not None else mt)
+    return jt, mt
+
+
 def atributos(nome, variante="", texto="", base=None):
     """Extrai atributos de UMA variante. Medidas/lugares da variante têm prioridade; texto é só o bloco do produto."""
     base = dict(base or {})
@@ -1175,10 +1379,17 @@ def atributos(nome, variante="", texto="", base=None):
         mt = list(dict.fromkeys(extrai_medidas(texto)))
         if len(set((a, b) for a, b, _ in mt)) == 1:
             md = mt
-    if md and md[0][2] is None:
+    if md and md[0][1] is None:
+        # "150 x 40 cm" (comprimento x profundidade, sem largura): completa a largura com a do texto quando o texto
+        # traz o mesmo comprimento com largura
+        for a_, b_, c_ in extrai_medidas(texto):
+            if b_ is not None and abs(a_ - md[0][0]) <= 0.02:
+                md = [(md[0][0], b_, md[0][2] if md[0][2] is not None else c_)]
+                break
+    if md and md[0][2] is None and md[0][1] is not None:
         # nome/variante sem profundidade: completa com a do texto quando o texto traz a mesma medida (C x L)
         for a_, b_, c_ in extrai_medidas(texto):
-            if c_ is not None and abs(a_ - md[0][0]) <= 0.02 and abs(b_ - md[0][1]) <= 0.02:
+            if c_ is not None and b_ is not None and abs(a_ - md[0][0]) <= 0.02 and abs(b_ - md[0][1]) <= 0.02:
                 md = [(md[0][0], md[0][1], c_)]
                 break
     if md:
@@ -1186,20 +1397,30 @@ def atributos(nome, variante="", texto="", base=None):
     out["lugares"] = extrai_lugares(alvo_var, False) or extrai_lugares(alvo_nome) or extrai_lugares(texto, False)
     out["material"] = extrai_material(alvo_var) or extrai_material(alvo_nome) or extrai_material(texto)
     jv, mv = extrai_jatos(alvo_var)
-    jt, mt_ = extrai_jatos(texto)
+    jt, mt_ = jatos_declarados(alvo_nome, texto, *extrai_jatos(texto))
     if jv is not None or mv is not None:  # a variante diz a configuração: não mistura com o texto das outras
         out["jatos"], out["mini_jatos"] = jv, mv
     else:
         out["jatos"], out["mini_jatos"] = jt, mt_
     out["motores"] = extrai_motores(alvo_var) or extrai_motores(texto)
     out["potencia_cv"] = extrai_cv(alvo_var) or extrai_cv(texto)
+    # "01 motobomba de 1cv a cada 10 jatos": o nº de motores segue os jatos da variante (reconferência r4)
+    prop = None if extrai_motores(alvo_var) else motores_por_proporcao(texto, (out["jatos"] or 0) + (out["mini_jatos"] or 0))
+    if prop:
+        out["motores"] = prop[0]
+        if prop[1] and not extrai_cv(alvo_var):
+            out["potencia_cv"] = prop[1]
     nv = alvo_nome + " " + alvo_var
     out["aquecedor_incluso"] = _flag_item(nv, texto, r"aquecedor(?:es)?|aquecimento")
     out["cromo_incluso"] = _flag_item(nv, texto, r"cromoterapia|cromo|leds?\b|iluminacao")
     out["garantia_casco_anos"] = extrai_garantia(texto)
     n = norm(nv)
+    # "Sem hidro" numa linha própria da ficha (Personalizze Rosalia Jacuzzi, freestanding de imersão; r4 preços #23)
+    sem_hidro_ficha = re.search(r"(?im)^[ \t]*(?:hidromassagem\s*:\s*n[aã]o|sem\s+hidro(?:massagem)?)[ \t.]*$", str(texto or ""))
     if re.search(r"sem hidro|sem hidromassagem", n) or (re.search(r"imersao|vitoriana", n) and not re.search(r"hidro", n)):
         out["com_hidro"] = False if not (out["jatos"] or out["mini_jatos"]) else True
+    elif sem_hidro_ficha and not (out["jatos"] or out["mini_jatos"] or out["motores"]):
+        out["com_hidro"] = False
     elif re.search(r"hidro|jacuzzi|\bc/ ?h\b", n) or out["jatos"] or out["mini_jatos"] or (out["motores"] or 0) > 0:
         out["com_hidro"] = True
     else:
@@ -1430,7 +1651,9 @@ class Coletor(object):
 
     def add(self, produto_id, nome, url, preco_por, preco_de=None, preco_pix=None, parcelas=None, disponivel=None,
             sku=None, variante="", texto="", attrs_base=None, extra=None, categoria=None, cat_extra="", dominio=None,
-            metodo=None):
+            metodo=None, de_igual_ok=False):
+        """de_igual_ok: grava o "De" mesmo quando é igual ao preço por (Mérito: "De R$ 18.034,94 Por R$ 16.231,45 (Pix)
+        · ou R$ 18.034,94 em 12x": o por passa a ser o preço de cartão, igual ao De que a página mostra)."""
         if self.p.get("so_nome"):
             cat_extra = ""  # varejista: categoria da loja mistura itens; decide só pelo nome
         chave = (str(produto_id), str(sku), norm(variante))
@@ -1484,6 +1707,10 @@ class Coletor(object):
             cp = extrai_cromo_pontos(nome + " " + variante + "\n" + texto)
             if cp:
                 ex0["cromo_pontos"] = cp
+        if cat in CATS_PRINCIPAIS and not ex_in.get("itens_inclusos"):
+            ie = itens_extra(nome + " " + variante, texto)
+            if ie:
+                ex0["itens_inclusos"] = ie
         if ex_in.get("instalacao_inclusa") is None:
             inst = extrai_instalacao(nome + " " + variante, texto)
             if inst is not None:
@@ -1494,7 +1721,7 @@ class Coletor(object):
         pp = fnum(preco_por)
         pp = pp if pp and pp > 0 else None
         pd_ = fnum(preco_de)
-        pd_ = pd_ if pd_ and pp and pd_ > pp + 0.009 else None
+        pd_ = pd_ if pd_ and pp and (pd_ > pp + 0.009 or (de_igual_ok and pd_ >= pp - 0.009)) else None
         px = fnum(preco_pix)
         px = px if px and px > 0 else None
         ex = dict(extra or {})
@@ -1627,8 +1854,15 @@ def ad_magento2_graphql(c):
             ln = extrai_lugares(lug or "") if lug else None
             if ln:
                 base["lugares"] = ln
-            if mat:
-                base["material"] = extrai_material(mat)
+            mat_ficha = extrai_material(mat) if mat else None
+            # nome e descrição vencem a ficha "Mais informações" quando conflitam (Acqua Spaço "em Acrílico",
+            # "Produzida em acrílico", com a ficha "Material: Gel Coat": reconferência r3, preços #2)
+            # (só acrílico x gel coat: "outro"/"fibra" lidos de frase solta da descrição não vencem a ficha)
+            mat_txt = next((m for m in (extrai_material(p["name"]), extrai_material(sd)) if m in ("acrilico", "gel coat")), None)
+            if mat_txt:
+                base["material"] = mat_txt
+            elif mat_ficha:
+                base["material"] = mat_ficha
             opcionais, eixos = [], []
             for o in p.get("options") or []:
                 tit = (o.get("title") or "").strip().rstrip(":").strip()
@@ -1652,7 +1886,8 @@ def ad_magento2_graphql(c):
                 base["cromo_incluso"] = False
             extra = {"configuracao": conf, "forma": forma, "categorias_loja": cats[:300], "regra_preco": "Preço Especial (final_price)",
                      "opcionais": opcionais or None,
-                     "medidas_cadastro": " x ".join(x for x in dims_attr if x) or None}
+                     "medidas_cadastro": " x ".join(x for x in dims_attr if x) or None,
+                     "material_ficha_diverge": mat if (mat_txt and mat_ficha and mat_txt != mat_ficha) else None}
             url = "%s/%s.html" % (site, p["url_key"]) if p.get("url_key") else None
             disp = p.get("stock_status") == "IN_STOCK"
             texto = p["name"] + "\n" + sd
@@ -1898,13 +2133,20 @@ def ad_woo_store_api(c):
         cats = " ".join(html.unescape(x.get("name", "")) for x in p.get("categories") or [])
         sd, ds = html_txt(p.get("short_description")), html_txt(p.get("description"))
         texto = corta_relacionados(nome + "\n" + sd + "\n" + ds)
-        conf_sel, hfj = None, None
+        conf_sel, hfj, hf_parc, hf_gar = None, None, None, None
         # Hidro Fiber: a página traz o configurador (JSON "hf-...-data") com cada configuração, o preço e o que inclui
         if c.p.get("config_html") and p.get("permalink") and p.get("type") != "variable":
             try:
                 hp = c.f.texto(p["permalink"])
                 mj = re.search(r'(?s)<script type="application/json" id="hf-[\w-]*-data">(.*?)</script>', hp)
                 hfj = json.loads(mj.group(1)) if mj else None
+                # bloco de preço "hf-product-price-wrapper": "Pague por Pix em até 12x R$ 675,00 sem juros · Em até 12x"
+                # e "Garantia de 5 Anos" (a Store API não traz nenhum dos dois: 46 de 46 linhas sem parcelas, r3 #21/#22)
+                iw = hp.find("hf-product-price-wrapper")
+                bloco_hf = html_txt(hp[iw:iw + 3000]) if iw >= 0 else ""
+                hf_parc = _parcelas_html(bloco_hf)
+                hf_gar = extrai_garantia(str((hfj or {}).get("shellWarranty") or "") and
+                                         "garantia de " + str(hfj.get("shellWarranty"))) or extrai_garantia(bloco_hf[:600])
             except (requests.HTTPError, Bloqueado, ValueError):
                 hfj = None
         # descrição com várias "Configuração X:" num produto simples: sem o configurador, usa só o 1º bloco
@@ -1949,6 +2191,12 @@ def ad_woo_store_api(c):
         lug_img = extrai_lugares(img_txt, False) if re.search(r"pessoa|lugar", norm(img_txt)) else None
         if lug_img:
             extra["lugares_imagem"] = lug_img
+        # forma que o nome e a ficha não dizem: categoria da loja ou nome/alt das imagens ("spa-octogonal.jpg")
+        if not forma_attr and not extrai_forma(nome):
+            fe = forma_evidencia(cats) or forma_evidencia(img_txt)
+            if fe:
+                extra["forma"] = fe
+                extra["forma_origem"] = "categoria da loja" if forma_evidencia(cats) else "nome da imagem do produto"
         if conf_sel:
             extra.update(configuracao=conf_sel[0], configuracao_origem=conf_sel[1], configuracoes_na_descricao=[k for k, _ in blocos_conf])
 
@@ -1977,6 +2225,11 @@ def ad_woo_store_api(c):
             if p.get("is_purchasable") is False and not fnum(pr.get("price")):
                 pr["price"] = None  # modo catálogo: preço 0 = não publicado
             px, pa = _pix_parc(_woo_preco(pr, "price"), _woo_parcelas(p.get("price_html")))
+            if pa is None and hf_parc:
+                pa = hf_parc
+                extra["parcelas_origem"] = "bloco de preço da página (hf-product-price-wrapper)"
+            if hf_gar and base_a.get("garantia_casco_anos") is None:
+                base_a["garantia_casco_anos"] = hf_gar
             opc_hf = [{"grupo": "opções da página", "item": o.get("label"), "preco": fnum(o.get("price"))}
                       for o in (hfj or {}).get("options") or [] if fnum(o.get("price"))]
             confs = (hfj or {}).get("configurations") or []
@@ -2443,6 +2696,38 @@ def ad_tray_html_datalayer(c):
 
 
 # ---- 7) VTEX catálogo público ----
+# Cluster/selo do catálogo VTEX que esconde o preço no site ("Skus ocultação preço front-end" da Quero-Quero: a página
+# mostra "Exclusivo loja física: Contate um vendedor!", sem preço e sem botão de compra)
+_RX_VTEX_SEM_VENDA = re.compile(r"oculta\w*\s+(?:de\s+)?pre[cç]o|exclusivo\s+(?:da\s+|na\s+)?loja|loja\s+f[ií]sica|"
+                                r"contate\s+um\s+vendedor|venda\s+s[oó]\s+(?:na|em)\s+loja|sob\s+consulta", re.I)
+# bandeiras de cartão comuns e carteiras: parcelas "sem juros" do cartão próprio da loja (Cartão VerdeCard, 10x)
+# não valem para o cliente comum (8x)
+_RX_CARTAO_COMUM = re.compile(r"visa|master|elo\b|american|amex|hiper|diners|discover|jcb|cabal|aura\b|google pay|apple pay|"
+                              r"samsung pay|credito|crédito", re.I)
+
+
+def _vtex_oferta(p, it, o):
+    """(preco, de, pix, parcelas, disponivel, motivo_sem_preco) de um item do catálogo VTEX, com as regras da página:
+    indisponível (IsAvailable false / estoque 0: a página mostra "Avise-me", sem preço) e venda só na loja física
+    (cluster de preço oculto) não têm preço publicado: preco None, disponivel False. O preço parado do catálogo vai
+    para atributos_json.preco_catalogo_vtex (só referência)."""
+    lp, pr = fnum(o.get("ListPrice")), fnum(o.get("Price"))
+    inst = o.get("Installments") or []
+    comuns = [x for x in inst if _RX_CARTAO_COMUM.search(x.get("PaymentSystemName") or "")]
+    sj = [x["NumberOfInstallments"] for x in (comuns or inst) if not x.get("InterestRate")]
+    pix = [x.get("Value") for x in inst if "pix" in (x.get("PaymentSystemName") or "").lower() and x.get("NumberOfInstallments") == 1]
+    clusters = " | ".join(str(v) for k in ("productClusters", "clusterHighlights") for v in (p.get(k) or {}).values())
+    motivo = None
+    if _RX_VTEX_SEM_VENDA.search(clusters):
+        motivo = "venda só na loja física (catálogo: %s); o site não mostra preço" % _RX_VTEX_SEM_VENDA.search(clusters).group(0)
+    elif o.get("IsAvailable") is False or not (o.get("AvailableQuantity") or 0) > 0:
+        motivo = "indisponível no site (Avise-me), sem preço publicado"
+    if motivo:
+        return None, None, None, None, False, motivo
+    return (pr, lp if lp and pr and lp > pr else None, pix[0] if pix and pr and pix[0] < pr else None,
+            max(sj) if sj else None, True, None)
+
+
 def ad_vtex_catalog(c):
     base = c.cfg["endpoint"].rstrip("/")
     vistos, n = set(), 0
@@ -2471,16 +2756,14 @@ def ad_vtex_catalog(c):
                 for it in p.get("items") or []:
                     sel = (it.get("sellers") or [{}])[0]
                     o = sel.get("commertialOffer") or {}
-                    inst = o.get("Installments") or []
-                    sj = [x["NumberOfInstallments"] for x in inst if not x.get("InterestRate")]
-                    pix = [x.get("Value") for x in inst if "pix" in (x.get("PaymentSystemName") or "").lower() and x.get("NumberOfInstallments") == 1]
                     vt = it.get("name") if len(p.get("items") or []) > 1 else ""
-                    lp, pr = fnum(o.get("ListPrice")), fnum(o.get("Price"))
-                    c.add(p.get("productId"), nome, p.get("link"), pr, lp if lp and pr and lp > pr else None,
-                          pix[0] if pix and pr and pix[0] < pr else None, max(sj) if sj else None,
-                          (o.get("AvailableQuantity") or 0) > 0, sku=it.get("itemId"), variante=vt or "", texto=texto,
-                          extra={"marca": p.get("brand"), "vendedor": sel.get("sellerName"), "ean": it.get("ean"),
-                                 "categoria_loja": (p.get("categories") or [""])[0]}, cat_extra=cat_txt)
+                    pr, de, px, parc, disp, motivo = _vtex_oferta(p, it, o)
+                    ex = {"marca": p.get("brand"), "vendedor": sel.get("sellerName"), "ean": it.get("ean"),
+                          "categoria_loja": (p.get("categories") or [""])[0]}
+                    if motivo:
+                        ex.update(motivo_sem_preco=motivo, preco_catalogo_vtex=fnum(o.get("Price")) or None)
+                    c.add(p.get("productId"), nome, p.get("link"), pr, de, px, parc, disp, sku=it.get("itemId"),
+                          variante=vt or "", texto=texto, extra=ex, cat_extra=cat_txt)
             if len(lote) < 50:
                 break
             ini += 50
@@ -2776,6 +3059,17 @@ def ad_sitemap_jsonld(c):
                 variacoes = []
         sku = prod.get("sku") or prod.get("productID")
         extra = {"marca": (prod.get("brand") or {}).get("name") if isinstance(prod.get("brand"), dict) else prod.get("brand")}
+        if not extrai_forma(nome):
+            # forma que o nome não diz: categoria/tag do próprio produto (Acqualine Triângulo Mineiro:
+            # product_cat-banheiras-de-canto-basicas) ou nome do arquivo da imagem principal
+            img = prod.get("image")
+            img = img[0] if isinstance(img, list) and img else img
+            img = (img.get("url") or img.get("contentUrl") or "") if isinstance(img, dict) else str(img or "")
+            cls = _classes_produto_html(h)
+            fe = forma_evidencia(cls) or forma_evidencia(urlparse(img).path.rsplit("/", 1)[-1])
+            if fe:
+                extra["forma"] = fe
+                extra["forma_origem"] = "categoria do produto" if forma_evidencia(cls) else "nome da imagem do produto"
         # Product.size do JSON-LD (Aquasol: "2,00 x 2,00 x 0,67", a variante Tamanho da página): é a medida do produto
         base_ld = {}
         md_ld = list(dict.fromkeys(extrai_medidas(str(prod.get("size") or ""))))
@@ -2802,10 +3096,20 @@ def ad_sitemap_jsonld(c):
         bloco = bloco_produto_html(h, nome, 6000)
         pix = _pix_html(bloco, preco) if preco else None
         parc = _parcelas_html(bloco)
-        de = None
-        if preco and pix is None and not c.p.get("jsonld_preco_e_pix"):
-            pct = _pix_percentual_html(bloco)  # "Ganhe 5% de desconto no Pix" (ABC)
-            if pct:
+        de, de_igual = None, False
+        if preco and not c.p.get("jsonld_preco_e_pix"):
+            pct = _pix_percentual_html(bloco) if pix is None else None  # "Ganhe 5% de desconto no Pix" (ABC)
+            ps = o.get("priceSpecification") if isinstance(o.get("priceSpecification"), dict) else {}
+            cartao = _por_ja_e_pix(bloco, preco, pix, pct, brl(ps.get("maxPrice")) if ps.get("maxPrice") else None)
+            if cartao:
+                # o "Por" já é o Pix: não desconta de novo; o preço de cartão vira o "por" e o "De" do bloco vai para preco_de
+                extra.update(preco_por_origem="cartão (bloco do produto); o 'Por' da página já é o preço do Pix",
+                             pix_origem="'Por' da página" + (" (= %s%% sobre o cartão)" % pct if pct else ""))
+                pix, preco = preco, cartao
+                mo = re.search(r"(?i)\bde\s*:?\s*" + _RS, _junta_valor(html_txt(bloco)))
+                de = brl(mo.group(1)) if mo else None
+                de_igual = True
+            elif pix is None and pct:
                 pix = round(preco * (1 - pct / 100.0), 2)
                 extra["pix_origem"] = "desconto do Pix publicado na página (%s%%)" % pct
         if c.p.get("jsonld_preco_e_pix") and preco:
@@ -2823,7 +3127,7 @@ def ad_sitemap_jsonld(c):
             elif cartao is None:
                 c.f.notas.append("preço de cartão não achado em %s" % urlparse(u).path[:60])
         c.add(sku or u, nome, u, preco, de, pix, parc, ("InStock" in str(o.get("availability"))) if o else None, sku=sku,
-              variante="", texto=texto, extra=extra, attrs_base=base_ld)
+              variante="", texto=texto, extra=extra, attrs_base=base_ld, de_igual_ok=de_igual)
     return n
 
 
@@ -3088,6 +3392,16 @@ def _cliquemania_item(h, preco):
     return desc, pix, opc
 
 
+def _cliquemania_tamanho_padrao(h):
+    """Medida da opção 'TAMANHO: 1.53 x 0.81 x 0.54' com '+ R$0,00' (a configuração do preço anunciado)."""
+    t = html_txt(re.sub(r"(?is)<(header|nav|footer|aside)[^>]*>.*?</\1>", " ", h))
+    for m in re.finditer(r"(?im)^TAMANHO\s*:\s*([^\n]{5,40})\n\+\s*R\$\s*0,00\s*$", t):
+        md = extrai_medidas(m.group(1))
+        if md and md[0][1] is not None:
+            return md[0]
+    return None
+
+
 def ad_cliquemania_lista(c):
     h = c.f.texto(c.cfg["endpoint"])
     n = 0
@@ -3114,25 +3428,47 @@ def ad_cliquemania_lista(c):
             urls = (urls[off:] + urls[:off])[:lim]
             c.f.notas.append("rodízio: página do item de %d de %d produtos hoje (Pix, formato e pessoas só nesses)" % (lim, len(set(x[2] for x in linhas if x[2]))))
         detalhe = set(urls)
+    # 1ª passada: páginas do item do dia (Pix, ficha, opcionais, tamanho padrão)
+    det = {}
+    for sku, nome, url, preco, cat, desc in linhas:
+        if url not in detalhe:
+            continue
+        try:
+            h = c.f.texto(url)
+            det[url] = _cliquemania_item(h, preco) + (_cliquemania_tamanho_padrao(h),)
+        except (requests.HTTPError, Bloqueado):
+            pass
+        except Corte:
+            detalhe = set()
+            c.f.notas.append("corte por tempo nas páginas de item")
+    # Pix dos itens fora do rodízio do dia: percentual da loja, lido nas páginas de item de hoje quando é o mesmo em
+    # todas (Personalizze: 2%; 208 de 424 linhas ficavam sem Pix; reconferência r4 preços #24). O valor "Pix" dos cards
+    # de listagem não serve: o rótulo vem trocado (o número maior aparece como Pix).
+    preco_url = {x[2]: x[3] for x in linhas}
+    pcts = [round((1 - d[1] / preco_url[u]) * 100, 1) for u, d in det.items() if d[1] and preco_url.get(u) and d[1] < preco_url[u]]
+    pct_loja = None
+    if len(pcts) >= 2 and max(pcts) - min(pcts) <= 0.2 and 0 < min(pcts) and max(pcts) <= 15:
+        pct_loja = round(sorted(pcts)[len(pcts) // 2], 1)
     for sku, nome, url, preco, cat, desc in linhas:
         n += 1
         texto, pix, extra = corta_relacionados(nome + "\n" + desc), None, {"categoria_loja": cat}
-        if url in detalhe:
-            try:
-                d_desc, pix, opc = _cliquemania_item(c.f.texto(url), preco)
-                if d_desc:
-                    texto = nome + "\n" + d_desc
-                    extra["fonte_atributos"] = "pagina do item"
-                if opc:
-                    extra["opcionais"] = opc
-                if pix:
-                    extra["pix_origem"] = "pagina do item"
-            except (requests.HTTPError, Bloqueado):
-                pass
-            except Corte:
-                detalhe = set()
-                c.f.notas.append("corte por tempo nas páginas de item")
         base = {}
+        if url in det:
+            d_desc, pix, opc, tam = det[url]
+            if d_desc:
+                texto = nome + "\n" + d_desc
+                extra["fonte_atributos"] = "pagina do item"
+            if opc:
+                extra["opcionais"] = opc
+            if pix:
+                extra["pix_origem"] = "pagina do item"
+            if tam:
+                # medida padrão: a 1ª opção "TAMANHO: ... + R$ 0,00" (a ficha lista todas as medidas da linha)
+                base["comprimento_m"], base["largura_m"], base["profundidade_m"] = tam
+                extra["medida_origem"] = "opção TAMANHO sem acréscimo"
+        elif pct_loja is not None and preco:
+            pix = round(preco * (1 - pct_loja / 100.0), 2)
+            extra["pix_origem"] = "percentual da loja (%s%% lido nas páginas de item de hoje)" % pct_loja
         itens_opc = norm(" ".join(o["item"] for o in extra.get("opcionais") or []))
         if "aquecedor" in itens_opc and _flag_item(nome, "", r"aquecedor(?:es)?|aquecimento") is not True:
             base["aquecedor_incluso"] = False
@@ -3243,6 +3579,9 @@ def saneia(df, hist):
     sem = df["preco_por"].isna()
     df.loc[sem, "status_preco"] = "sem_preco"
     df.loc[sem, "motivo_status"] = "preço não publicado"
+    # motivo dito pelo adaptador (VTEX: indisponível com "Avise-me", venda só na loja física)
+    mot = df["atributos_json"].fillna("").astype(str).str.extract(r'"motivo_sem_preco": "([^"]*)"')[0]
+    df.loc[sem & mot.notna(), "motivo_status"] = mot[sem & mot.notna()]
     principal = df["categoria"].isin(CATS_PRINCIPAIS)
     baixo = principal & ~sem & (df["preco_por"] < 500)
     alto = principal & ~sem & (df["preco_por"] > 100000)

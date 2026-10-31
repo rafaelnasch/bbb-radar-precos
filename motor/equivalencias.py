@@ -47,6 +47,22 @@ CORREÇÕES DA CONFERÊNCIA ADVERSARIAL DE 31/10/2026 (verificacao_pares.md: 11 
  f. Forma: atributo da loja quando existir (vitoriana/freestanding no nome continuam vencendo).
  g. Preço de vitrine 99999/9999,99 ("sob consulta") não é preço: a linha não entra.
 
+CORREÇÕES DA RECONFERÊNCIA R3 (31/10/2026):
+ h. BBB redonda/de canto/sextavada/octogonal contra concorrente sem forma por nenhuma fonte (nome, atributo,
+    categoria da loja, imagem): "referencia". Categoria da loja que cita uma forma só vale como forma.
+ i. 1 lugar a menos no concorrente com medida ±5%: passa nos filtros duros, nunca "exato" (teste 107).
+ j. Ozônio, air blower e filtragem inclusos no concorrente (atributos_json.itens_inclusos) são descontados pelo
+    opcional da BBB, como aquecedor e cromo.
+
+CORREÇÕES DA RECONFERÊNCIA R4 (31/10/2026):
+ k. "Com abas" (banheira de apoio com saia): BBB com abas só casa com concorrente que também tem "abas" no nome, e
+    vice-versa ("sem abas" não conta). Filtro duro.
+ l. Cadastro de forma por SKU da BBB (FORMA_BBB_SKU), conferido pela foto, vence o atributo "Forma" da loja (que diz
+    "Retangular" para banheiras ovais). Oval passa a ser forma especial: contra concorrente sem forma, "referencia".
+    Tipo especial (Harmonia: apoio com visor frontal de vidro) não entra no índice sem concorrente do mesmo tipo.
+ m. Sanidade: preço ajustado abaixo de 40% do preço do concorrente, ou gap acima de 300%, vai para revisão
+    ("referencia" com o motivo) em vez de entrar no índice.
+
 Classes (só exato e equivalente entram no índice):
   exato:       mesmo tipo e lugares (conhecidos nos dois); mesmo material (conhecido nos dois);
                comprimento ±5% e largura ±10%; jatos (grandes+mini) com diferença <= max(2; 20%); mesmo
@@ -200,6 +216,8 @@ def forma_de(t):
         return "canto"
     if re.search(r"sextavad|hexagon", t):
         return "sextavada"
+    if re.search(r"octogon|oitavad", t):
+        return "octogonal"
     if "quadrad" in t:
         return "quadrada"
     if "oval" in t:
@@ -222,7 +240,7 @@ def forma_por_medida(L, W):
     return None
 
 
-FORMAS_PROPRIAS = ("canto", "sextavada")  # contorno próprio: não é quadrada, redonda nem alongada
+FORMAS_PROPRIAS = ("canto", "sextavada", "octogonal")  # contorno próprio: não é quadrada, redonda nem alongada
 
 
 def _grupo_forma(f):
@@ -257,7 +275,55 @@ def forma_diverge(b, c):
 
 
 PLANTA_QUADRADA_AMBIGUA = os.environ.get("EQUIV_PLANTA_AMBIGUA", "1") == "1"
-FORMAS_ESPECIAIS = ("redonda", "canto", "sextavada")
+FORMAS_ESPECIAIS = ("redonda", "canto", "sextavada", "octogonal", "oval")  # oval: cadastro por foto (r4)
+# BBB de forma especial (redonda, de canto) contra concorrente que não declara forma em lugar nenhum (nome, atributo,
+# categoria, imagem): a medida não distingue (Hidro Fiber Veneza 2,40 x 2,20 quadrado x Coliseu redondo; Aurum
+# Noronha octogonal x Florença de canto; reconferência r3, pares 12 e 14). O par fica em "referencia".
+# EQUIV_FORMA_SEM_EVIDENCIA=0 desliga.
+FORMA_SEM_EVIDENCIA = os.environ.get("EQUIV_FORMA_SEM_EVIDENCIA", "1") == "1"
+
+# Forma e tipo da BBB conferidos pela foto do produto, até a BBB corrigir a ficha (o atributo "Forma" diz "Retangular"
+# para todos estes). sku -> (forma, tipo especial ou None, origem). Reconferência r4 (31/10/2026), pares 1, 2, 3, 23 e 24;
+# BDVACA usa a mesma foto da BL50 (vitoria-dupla-abas_01) e a b69 foi conferida pela foto na correção da r4.
+FORMA_BBB_SKU = {
+    "BL50": ("oval", None, "foto vitoria-dupla-abas_01: oval de apoio com abas (r4, pares 2 e 24)"),
+    "BDVACA": ("oval", None, "foto vitoria-dupla-abas_01, a mesma da BL50"),
+    "b68": ("oval", None, "foto: oval assimétrica, formato de gota (r4, par 3)"),
+    "BDRCA": ("oval", None, "foto: oval (r4, par 23)"),
+    "b69": ("oval", None, "foto: oval, mesmo modelo da BDRCA em gel coat"),
+    "HARM01": (None, "apoio com visor", "foto: banheira de apoio com visor frontal de vidro e gabinete (r4, par 1); "
+                                        "confirmar com a BBB o que acompanha"),
+}
+RX_ABAS = re.compile(r"\babas\b")
+RX_SEM_ABAS = re.compile(r"(?:\bsem|\bs/)\s*abas\b")
+SANIDADE_MIN_AJUSTE = 0.40   # ajustado < 40% do preço do concorrente: revisar
+SANIDADE_MAX_GAP = 300.0     # gap > 300%: revisar
+
+
+def tem_abas(nome, variante=""):
+    """Banheira "com abas" (saia que fecha o casco): "abas" no nome ou na variante, sem "sem abas"."""
+    t = _low(f"{nome} {variante}")
+    return bool(RX_ABAS.search(t)) and not RX_SEM_ABAS.search(t)
+
+
+def _forma_unica(t):
+    """Forma de um texto que cita UMA forma só (categorias da loja: 'Banheiras de Canto Completas'). Duas formas
+    diferentes ('Redondas e de Canto') não decidem."""
+    t = _low(t)
+    achadas = {f for f, rx in (("octogonal", r"octogon|oitavad"), ("sextavada", r"sextavad|hexagon"),
+                               ("quadrada", r"quadrad"), ("redonda", r"redond|circular"), ("canto", r"\bcanto\b"),
+                               ("oval", r"\boval"), ("retangular", r"retangular")) if re.search(rx, t)}
+    return achadas.pop() if len(achadas) == 1 else None
+
+
+def forma_sem_evidencia(b, c):
+    """A BBB declara forma especial coerente com a própria medida e o concorrente não tem forma por nenhuma fonte."""
+    if b["forma"] not in FORMAS_ESPECIAIS or c["forma"]:
+        return False
+    gb, gm = _grupo_forma(b["forma"]), _grupo_forma(b.get("forma_med"))
+    if gb not in FORMAS_PROPRIAS and gm and gb != gm:
+        return False  # o atributo da BBB contradiz a medida dela (Acqua Vip "Redonda" 0,80 x 1,00): não decide
+    return True
 
 
 def forma_ambigua(b, c):
@@ -277,6 +343,22 @@ def _pontos(t):
     return int(m.group(1)) if m else None
 
 
+# Opcionais pagos da BBB além de aquecedor, cromo e acionador, com a mesma chave que o coletor grava em
+# atributos_json.itens_inclusos quando o concorrente inclui o item de série (reconferência r3: Fábrica Spa Baby e
+# Master Top incluem ozônio e air blower; a BBB vende os dois como opcional).
+EXTRAS_ROTULO = {"ozonio": "ozônio", "airblower": "air blower", "filtragem": "kit filtragem (areia)"}
+
+
+def _chave_extra(t):
+    if re.search(r"ozon", t):
+        return "ozonio"
+    if re.search(r"blower|soprador", t):
+        return "airblower"
+    if re.search(r"filtr", t) and "areia" in t:
+        return "filtragem"
+    return None
+
+
 def _opcionais(a):
     """Aceita os dois formatos: dict {aquecedor: preço} (legado) ou lista [{item, preco}] (coleta v2)."""
     op = a.get("opcionais")
@@ -290,7 +372,7 @@ def _opcionais(a):
         if v is None or str(it.get("tipo") or "").upper() == "PERCENT":
             continue
         k = ("aquecedor" if "aquecedor" in t else "cromo" if "cromo" in t else
-             "acionador" if "acionador" in t else t[:40])
+             "acionador" if "acionador" in t else _chave_extra(t) or t[:40])
         if k == "cromo":
             # mais de um opcional de cromo (2 e 4 pontos): guarda todos; o desconto escolhe pelo nº de pontos
             out.setdefault("_cromo_opcoes", []).append((_pontos(t), v))
@@ -327,6 +409,8 @@ def normalizar(row):
     # acionador: coleta v2 não grava acionador_incluso; deriva do nome ou da lista de opcionais pagos
     ac = b_(a.get("acionador_incluso"))
     if ac is None:
+        ac = b_((a.get("itens_inclusos") or {}).get("acionador"))
+    if ac is None:
         tn = _low(nome + " " + variante)
         if re.search(r"(com|c/|\+|e)\s*acionador (digital|eletronico)", tn):
             ac = True
@@ -337,6 +421,13 @@ def normalizar(row):
     fn = forma_de(nome)
     fa = forma_de(a.get("forma"))
     forma = fn if fn in ("vitoriana", "freestanding") else (fa or fn)
+    if not forma:
+        # sem forma no nome nem no atributo: categoria da loja que cita uma forma só (Minas "Banheiras de Canto")
+        forma = _forma_unica(a.get("categorias_loja") or a.get("categoria_loja") or "")
+    tipo_especial = forma_origem = None
+    if s_(row.get("empresa_slug")) == "bbb" and s_(row.get("sku")) in FORMA_BBB_SKU:
+        fc, tipo_especial, forma_origem = FORMA_BBB_SKU[s_(row.get("sku"))]
+        forma = fc or forma
     # potência total: coleta v2 grava potencia_total_cv_estimada (motores x cv por motor)
     cv_tot = f_(a.get("potencia_total_cv_estimada"))
     if cv_tot is None and mot and cv:
@@ -378,6 +469,8 @@ def normalizar(row):
         "inc": inc,
         "opcionais": opc,
         "forma": forma, "forma_med": forma_por_medida(f_(row.get("comprimento_m")), f_(row.get("largura_m"))),
+        "tipo_especial": tipo_especial, "forma_origem": forma_origem, "abas": tem_abas(nome, variante),
+        "extras": {k: b_(v) for k, v in (a.get("itens_inclusos") or {}).items() if b_(v) is not None},
         "cromo_pontos": i_(a.get("cromo_pontos")), "entrada": entrada, "forma_incerta": bool(b_(a.get("forma_nao_declarada"))),
         "deck": b_(a.get("deck_incluso")) if b_(a.get("deck_incluso")) is not None else (
             True if re.search(r"(?:\bcom|\bc/|\+)\s*deck\b", _low(nome + " " + variante)) else None), "bloqueios": bloqueios, "marca": marca, "marca_premium": premium,
@@ -430,14 +523,24 @@ def filtros_duros(b, c):
         return None
     if b["com_hidro"] is True and c["com_hidro"] is False:
         return None
-    if b["lugares"] and c["lugares"] and b["lugares"] != c["lugares"]:
-        return None
+    if b.get("abas") != c.get("abas"):
+        return None  # com abas (banheira de apoio com saia) x sem abas: tipo diferente (r4, pares 2 e 24)
     dl = dw = None
     if b["L"] and c["L"] and b["W"] and c["W"]:
         dl, dw = rel(c["L"], b["L"]), rel(c["W"], b["W"])
         if dl > 0.20 or dw > 0.25:
             return None
+    if b["lugares"] and c["lugares"] and b["lugares"] != c["lugares"] and not lugares_tolerados(b, c, dl, dw):
+        return None
     return dl, dw
+
+
+def lugares_tolerados(b, c, dl, dw):
+    """Diferença de 1 lugar com a mesma medida (±5% nos dois lados) e o concorrente declarando MENOS lugares: a loja
+    conta "confortavelmente" (Cariri Canto Búzios 1,35 "acomoda duas pessoas" x Mônaco 1,34 da BBB, 3 lugares; teste
+    107, aceito na conferência manual). Nunca "exato"."""
+    return (b["lugares"] and c["lugares"] and c["lugares"] == b["lugares"] - 1 and dl is not None
+            and dl <= 0.05 and dw <= 0.05)
 
 
 def distancia(b, c, dl, dw):
@@ -505,7 +608,10 @@ def nota_e_classe(b, c, dl, dw):
         pts += 6
         mot.append("material do concorrente não verificado" if not c["material"] else "material BBB sem dado")
     # lugares (10) e forma (5)
-    if b["lugares"] and c["lugares"]:
+    if b["lugares"] and c["lugares"] and b["lugares"] != c["lugares"]:
+        pts += 6
+        mot.append(f"lugares {c['lugares']} vs {b['lugares']} (1 a menos com medida ±5%)")
+    elif b["lugares"] and c["lugares"]:
         pts += 10
         mot.append(f"lugares {c['lugares']}={b['lugares']}")
     else:
@@ -526,7 +632,7 @@ def nota_e_classe(b, c, dl, dw):
         exato = False
     if dl is None or dl > 0.10 or dw > 0.20:
         equiv = False
-    if not (b["lugares"] and c["lugares"]):
+    if not (b["lugares"] and c["lugares"]) or b["lugares"] != c["lugares"]:
         exato = False
     if not (b["material"] and c["material"] and b["material"] == c["material"]):
         exato = False
@@ -542,6 +648,12 @@ def nota_e_classe(b, c, dl, dw):
     elif PLANTA_QUADRADA_AMBIGUA and forma_ambigua(b, c):
         exato = equiv = False
         tetos.append(("referencia", "forma não verificada (planta quadrada pode ser redonda, quadrada ou de canto)"))
+    elif FORMA_SEM_EVIDENCIA and forma_sem_evidencia(b, c):
+        exato = equiv = False
+        tetos.append(("referencia", f"forma não verificada (BBB {b['forma']}; concorrente não declara forma)"))
+    if (b.get("tipo_especial") or c.get("tipo_especial")) and b.get("tipo_especial") != c.get("tipo_especial"):
+        exato = equiv = False
+        tetos.append(("referencia", f"tipo especial da BBB ({b.get('tipo_especial') or c.get('tipo_especial')}) sem concorrente do mesmo tipo"))
     # deck incluso no preço do concorrente (Minas Monte Carlo "com deck": +R$ 2.999 contra o mesmo ofurô sem deck)
     if c.get("deck") is True and b.get("deck") is not True:
         exato = equiv = False
@@ -642,10 +754,29 @@ def ajuste(b, c):
                 desc.append(f"BBB inclui {rot}; concorrente sem preço do opcional: não ajustado")
         elif ci is None and bi is False:
             desc.append(f"{rot} do concorrente não verificado: não ajustado")
+    # demais itens que o concorrente inclui de série e a BBB vende como opcional com preço (ozônio, air blower,
+    # filtragem): desconta o opcional da BBB, como aquecedor e cromo
+    for k, ci in sorted((c.get("extras") or {}).items()):
+        if k in ("aquecedor", "cromo", "acionador") or ci is not True or (b.get("extras") or {}).get(k) is True:
+            continue
+        v = b["opcionais"].get(k)
+        if v:
+            total -= v
+            desc.append(f"concorrente inclui {EXTRAS_ROTULO.get(k, k)}: -{brl(v)} (opcional BBB)")
     return total, ("; ".join(desc) if desc else "sem ajuste (mesmos itens)")
 
 
 ORDEM = {"exato": 0, "equivalente": 1, "referencia": 2}
+
+
+def sanidade(b, c, preco_aj):
+    """Par que não entra no índice sem revisão humana: ajuste que come mais de 60% do preço do concorrente
+    (Fábrica Copacabana R$ 9.479 virou R$ 1.081,86 descontando opcionais que não eram inclusos) ou gap acima de 300%."""
+    if c["preco"] and preco_aj < SANIDADE_MIN_AJUSTE * c["preco"]:
+        return f"ajustado {brl(preco_aj)} abaixo de {SANIDADE_MIN_AJUSTE:.0%} do preço {brl(c['preco'])}"
+    if preco_aj > 0 and (b["preco"] / preco_aj - 1) * 100 > SANIDADE_MAX_GAP:
+        return f"gap acima de {SANIDADE_MAX_GAP:.0f}%"
+    return None
 
 
 def casar(bbb, conc, revisao):
@@ -683,6 +814,10 @@ def casar(bbb, conc, revisao):
                 mot.append(f"variante escolhida entre {len(vs)}: {c['variante'] or '(única)'}")
             aj, aj_desc = ajuste(b, c)
             preco_aj = round(c["preco"] + aj, 2)
+            revisar = sanidade(b, c, preco_aj)
+            if revisar and classe in ("exato", "equivalente"):
+                classe = "referencia"
+                mot.append("limitado a referência: revisar (" + revisar + ")")
             pares.append(dict(b=b, c=c, nota=nota, classe=classe, motivos="; ".join(mot), dist=dist,
                               preco_aj=preco_aj, aj_desc=aj_desc))
             melhores.setdefault(slug, []).append(pares[-1])
@@ -850,6 +985,7 @@ def rodar(precos, revisao=None):
     resumo = {"data_coleta": dia, "variantes_bbb": len(bbb), "linhas_concorrentes": len(conc),
               "pares": int(len(eq)), "por_classe": eq["classe"].value_counts().to_dict(),
               "precos_suspeitos": int(len(susp)), "indices": indices(eq, faixa_bbb),
+              "pares_para_revisao": int(eq["motivos"].astype(str).str.contains("revisar (", regex=False).sum()),
               "faixas_empresas": {k: v for k, v in sorted(fx_emp.items())}}
     susp = susp.rename(columns={})[COLS_SUSP] if len(susp) else pd.DataFrame(columns=COLS_SUSP)
     comp = eq[eq["classe"].isin(["exato", "equivalente"])].copy()  # histórico só com o que entra no índice
